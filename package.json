@@ -63,6 +63,9 @@
   "bugs": {
     "url": "https://github.com/BARDAMRI/tickup-charts/issues"
   },
+  "publishConfig": {
+    "access": "public"
+  },
   "engines": {
     "node": ">=18.0.0"
   },
@@ -90,6 +93,5 @@
   "dependencies": {
     "date-fns": "^4.1.0",
     "lucide-react": "^0.541.0"
-  },
-  "private": true
+  }
 }

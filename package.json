@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "TickUp Prime premium financial engine for advanced themes, Prime-tier rendering, and pro-focused chart extensions.",
   "type": "module",
+  "private": true,
   "main": "./dist/tickup.cjs.js",
   "module": "./dist/tickup.es.js",
   "types": "./dist/index.d.ts",
@@ -33,7 +34,6 @@
     "build:example": "npm run build && npm install --no-audit --no-fund --prefix example && npm run build --prefix example",
     "build:lib": "TICKUP_LIB_ENTRY=index vite build && TICKUP_LIB_ENTRY=full vite build",
     "link-core": "npm link ../tickup-core-final",
-    "prepublishOnly": "npm run build",
     "preview": "vite preview",
     "combine-code": "node combineFiles.cjs",
     "test": "jest"
@@ -44,17 +44,11 @@
     "chart",
     "charts",
     "financial",
-    "candlestick",
-    "ohlc",
-    "ohlcv",
     "trading",
-    "canvas",
-    "stock",
-    "crypto",
-    "typescript"
+    "premium"
   ],
   "author": "Bar Damri",
-  "license": "MIT",
+  "license": "UNLICENSED",
   "homepage": "https://github.com/BARDAMRI/tickup-charts",
   "repository": {
     "type": "git",
@@ -62,9 +56,6 @@
   },
   "bugs": {
     "url": "https://github.com/BARDAMRI/tickup-charts/issues"
-  },
-  "publishConfig": {
-    "access": "public"
   },
   "engines": {
     "node": ">=18.0.0"
@@ -75,6 +66,7 @@
     "styled-components": ">=6"
   },
   "devDependencies": {
+    "tickup": "^1.0.7",
     "@types/jest": "^29.5.14",
     "@types/react-dom": "^19.1.2",
     "@types/styled-components": "^5.1.34",
@@ -85,7 +77,6 @@
     "sass-embedded": "^1.87.0",
     "styled-components": "^6.1.19",
     "ts-jest": "^29.3.4",
-    "tickup": "^1.0.7",
     "typescript": "~5.7.2",
     "vite": "^5.4.19",
     "vite-plugin-javascript-obfuscator": "^3.1.0"

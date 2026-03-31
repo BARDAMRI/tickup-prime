@@ -1,60 +1,59 @@
-# TickUp Prime — Premium Financial Engine
+# 💎 TickUp Prime
+## **The Premium High-Fidelity Rendering Engine for TickUp Charts**
 
-`@tickup/prime` is the premium rendering and product extension for TickUp Charts.
-It adds the neon visual profile, Prime-tier shell behavior, and pro-focused roadmap modules.
+**TickUp Prime** is the elite extension for the TickUp ecosystem. It replaces the standard **Core** renderer with a high-performance, visually stunning engine designed for professional trading terminals, institutional dashboards, and high-stakes fintech applications.
 
-## Peer Dependency
+## 🌟 Exclusive Prime Features
 
-This package requires **tickup (Core)** as a peer dependency.
+- **Neon Glow Engine:** Advanced Canvas 2D shaders for high-impact visual rendering.
+- **Turbo Rendering Path:** Optimized drawing logic for ultra-high-density data points.
+- **Cyberpunk & Midnight Themes:** Exclusive, pre-configured professional UI presets.
+- **Pro Indicators Suite:** Access to premium overlays like Volume Profile, advanced Fibonacci sets, and specialized moving averages.
+- **Priority Performance:** Minimal CPU overhead even with complex glow effects enabled.
 
-## Installation
+## 🚀 VIEW LIVE PRIME DEMO
+
+Experience the Neon Glow and Turbo Mode in our official showcase:  
+[https://BARDAMRI.github.io/tickup-charts/](https://BARDAMRI.github.io/tickup-charts/)
+
+## 📦 Installation
+
+TickUp Prime is designed as a layer on top of the **Core** library.
 
 ```bash
+# Install Core and Prime together
 npm install tickup @tickup/prime
 ```
 
-Also ensure your app has compatible peers:
+## 🛠️ Integration
 
-- `react >=18`
-- `styled-components >=6`
+Activating the Prime engine in your `TickUpHost` is seamless:
 
-## Usage
+```ts
+import { TickUpHost } from 'tickup/full';
+import { createTickUpPrimeEngine, getTickUpPrimeThemePatch } from '@tickup/prime';
 
-Use Prime from your chart host via the engine API:
+// 1. Create the engine instance
+const primeEngine = createTickUpPrimeEngine();
 
-```tsx
-import { useRef } from 'react';
-import { TickUpCommand, type TickUpHostHandle } from 'tickup/full';
-import { TickUpPrime, createTickUpPrimeEngine } from '@tickup/prime';
-
-export function PrimeExample() {
-  const ref = useRef<TickUpHostHandle>(null);
-
-  const enablePrimeDark = () => {
-    ref.current?.setEngine(TickUpPrime);
-  };
-
-  const enablePrimeLight = () => {
-    ref.current?.setEngine(createTickUpPrimeEngine('light'));
-  };
-
-  return (
-    <TickUpCommand
-      ref={ref}
-      intervalsArray={[]}
-      defaultSymbol="DEMO"
-    />
-  );
-}
+// 2. Pass it to the Host component
+<TickUpHost
+  engine={primeEngine}
+  chartOptions={getTickUpPrimeThemePatch('midnight-neon')}
+  {...props}
+/>;
 ```
 
-## Documentation
+## 📖 Prime Documentation
 
-- Prime documentation hub: [https://BARDAMRI.github.io/tickup-charts/](https://BARDAMRI.github.io/tickup-charts/)
-- Prime engine and roadmap guide: [https://BARDAMRI.github.io/tickup-charts/](https://BARDAMRI.github.io/tickup-charts/)
-- Custom neon theming guide: [https://BARDAMRI.github.io/tickup-charts/](https://BARDAMRI.github.io/tickup-charts/)
-- Prime roadmap: `Roadmap.md`
+- **Custom Neon Themes Guide** — [https://BARDAMRI.github.io/tickup-charts/](https://BARDAMRI.github.io/tickup-charts/)
+- **Prime Roadmap & Upcoming Pro Features** — [`Roadmap.md`](./Roadmap.md)
+- **Main Documentation Hub** — [https://BARDAMRI.github.io/tickup-charts/](https://BARDAMRI.github.io/tickup-charts/)
 
-## License
+## 🗺️ Prime Roadmap
 
-See repository policy for private package usage and commercial terms.
+- **Q3 2026:** WebGL-Accelerated Heatmaps.
+- **Q4 2026:** Collaborative Real-time Drawing Sync (Multiplayer).
+- **2027:** AI-Powered Pattern Recognition Overlays.
+
+**Support & Licensing:** For commercial inquiries and enterprise support, contact `bardamri1702@gmail.com`.

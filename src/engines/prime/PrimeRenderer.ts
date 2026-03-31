@@ -1,6 +1,4 @@
-import type {DeepRequired} from '../../types/types';
-import type {ChartOptions} from '../../types/chartOptions';
-import {TickUpRenderEngine} from '../../types/chartOptions';
+import {TickUpRenderEngine, type ChartOptions, type DeepRequired} from 'tickup';
 
 export function isPrimeEngine(options: DeepRequired<ChartOptions> | ChartOptions): boolean {
     return options.base?.engine === TickUpRenderEngine.prime;

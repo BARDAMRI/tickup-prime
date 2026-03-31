@@ -1,15 +1,19 @@
-import {ChartTheme, DeepPartial} from '../../types/types';
-import type {ChartOptions} from '../../types/chartOptions';
-import {TickUpRenderEngine} from '../../types/chartOptions';
-import type {TickUpChartEngine} from '../TickUpEngine';
-import {DEFAULT_GRAPH_OPTIONS} from '../../components/DefaultData';
+import {
+    ChartTheme,
+    TickUpRenderEngine,
+    TickUpStandardEngine as CoreStandardEngine,
+    type ChartOptions,
+    type TickUpChartEngine,
+} from 'tickup';
+
+type EnginePatch = ReturnType<TickUpChartEngine['getChartOptionsPatch']>;
 
 /** Prime “Neon Future” palette */
 export const TICKUP_PRIME_PRIMARY = '#3EC5FF';
 export const TICKUP_PRIME_SECONDARY = '#5A48DE';
 export const TICKUP_PRIME_TEXT = '#E7EBFF';
 
-const PRIME_PATCH: DeepPartial<ChartOptions> = {
+const PRIME_PATCH: EnginePatch = {
     base: {
         engine: TickUpRenderEngine.prime,
         theme: ChartTheme.dark,
@@ -60,7 +64,7 @@ const PRIME_PATCH: DeepPartial<ChartOptions> = {
 };
 
 /** Prime renderer on a **light** plot (toolbar + canvas follow `base.theme: ChartTheme.light`). */
-const PRIME_PATCH_LIGHT: DeepPartial<ChartOptions> = {
+const PRIME_PATCH_LIGHT: EnginePatch = {
     base: {
         engine: TickUpRenderEngine.prime,
         theme: ChartTheme.light,
@@ -112,7 +116,7 @@ const PRIME_PATCH_LIGHT: DeepPartial<ChartOptions> = {
 };
 
 /** Chart options patch for Prime, matching host light / dark chrome. */
-export function getTickUpPrimeThemePatch(theme: ChartTheme): DeepPartial<ChartOptions> {
+export function getTickUpPrimeThemePatch(theme: ChartTheme): EnginePatch {
     return theme === ChartTheme.light ? PRIME_PATCH_LIGHT : PRIME_PATCH;
 }
 
@@ -124,30 +128,8 @@ export function createTickUpPrimeEngine(theme: ChartTheme): TickUpChartEngine {
     };
 }
 
-function standardPatch(): DeepPartial<ChartOptions> {
-    const b = DEFAULT_GRAPH_OPTIONS.base;
-    const s = b.style;
-    return {
-        base: {
-            engine: TickUpRenderEngine.standard,
-            theme: b.theme,
-            style: {
-                backgroundColor: s.backgroundColor,
-                showGrid: s.showGrid,
-                grid: {...s.grid},
-                axes: {
-                    textColor: s.axes.textColor,
-                    lineColor: s.axes.lineColor,
-                    font: s.axes.font,
-                },
-                candles: {...s.candles},
-                histogram: {...s.histogram},
-                bar: {...s.bar},
-                line: {...s.line},
-                area: {...s.area},
-            },
-        },
-    };
+function standardPatch(): EnginePatch {
+    return CoreStandardEngine.getChartOptionsPatch();
 }
 
 /** Prime engine profile — dark plot; use {@link createTickUpPrimeEngine} when the host is light. */
@@ -158,6 +140,6 @@ export const TickUpPrime: TickUpChartEngine = {
 
 /** Default canvas look — reverses Prime styling to library defaults (light). */
 export const TickUpStandardEngine: TickUpChartEngine = {
-    id: TickUpRenderEngine.standard,
+    id: CoreStandardEngine.id,
     getChartOptionsPatch: () => standardPatch(),
 };

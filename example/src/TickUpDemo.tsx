@@ -1,0 +1,1471 @@
+/**
+ * Interactive **TickUp Charts** playground — real `TickUpHost` from `tickup/full` (`ref.setEngine`, live range nudge, `chartOptions`).
+ * There is no `TickUpCore` class; embed `TickUpHost` / `TickUpStage` per the package docs.
+ */
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import type { Interval, TickUpChartEngine, TickUpHostHandle } from 'tickup/full';
+import type { RangeKey } from 'tickup/full';
+import {
+    AxesPosition,
+    ChartTheme,
+    ChartType,
+    Mode,
+    OverlayKind,
+    TickUpHost,
+    TickUpRenderEngine,
+    TimeDetailLevel,
+    createTickUpPrimeEngine,
+    getTickUpPrimeThemePatch,
+} from 'tickup/full';
+import {
+    AreaChart,
+    BookOpen,
+    CandlestickChart,
+    Eraser,
+    Flame,
+    GitBranch,
+    Layers,
+    LineChart,
+    Moon,
+    MousePointer2,
+    Pencil,
+    Sun,
+    TrendingUp,
+    Zap,
+} from 'lucide-react';
+// NOTE: Brand assets are optional in this repo checkout; keep the demo resilient without them.
+import {
+    LIVE_TICK_MS,
+    toHeikinAshi,
+} from '../data-generator';
+import {demoMarketData, type DemoIntervalKey, type DemoSymbol} from './demo-data/DemoMarketDataService';
+
+/** Documentation hub — table of contents for all guides. */
+const DOCS_HUB_URL =
+    'https://github.com/BARDAMRI/tickup-charts/blob/main/documentation/README.md';
+/** Browse the `documentation/` directory on GitHub. */
+const DOCS_TREE_URL = 'https://github.com/BARDAMRI/tickup-charts/tree/main/documentation';
+
+type ThemePreference = 'system' | ChartTheme;
+
+function usePrefersColorSchemeDark(): boolean {
+    const [dark, setDark] = useState(() =>
+        typeof window !== 'undefined' ? window.matchMedia('(prefers-color-scheme: dark)').matches : false
+    );
+    useEffect(() => {
+        const mq = window.matchMedia('(prefers-color-scheme: dark)');
+        const onChange = () => setDark(mq.matches);
+        mq.addEventListener('change', onChange);
+        return () => mq.removeEventListener('change', onChange);
+    }, []);
+    return dark;
+}
+
+type ChartKind = 'candle' | 'area' | 'line' | 'heikin';
+type DemoRangeKey = '20m' | '6h' | '7d' | '6mo' | '2y';
+const MAX_DEMO_HISTORY_BARS = 200_000;
+const DEMO_RANGES: readonly DemoRangeKey[] = ['20m', '6h', '7d', '6mo', '2y'] as const;
+
+const TF_SECONDS: Record<string, number> = {
+    '1m': 60, '2m': 120, '3m': 180, '5m': 300, '10m': 600, '15m': 900, '30m': 1800, '45m': 2700,
+    '1h': 3600, '2h': 7200, '3h': 10800, '4h': 14400,
+    '1D': 86400,
+    '1W': 604800,
+    '1M': 2592000,
+};
+
+const CHART_KIND_TO_TYPE: Record<ChartKind, ChartType> = {
+    candle: ChartType.Candlestick,
+    area: ChartType.Area,
+    line: ChartType.Line,
+    /** Heikin-Ashi values are OHLC candles; native type is still candlestick. */
+    heikin: ChartType.Candlestick,
+};
+
+/** Standard **light** plot chrome for the demo (readable ticks on white / off-white). */
+const demoStandardLightEngine: TickUpChartEngine = {
+    id: 'demo-standard-light',
+    getChartOptionsPatch: () => ({
+        base: {
+            engine: TickUpRenderEngine.standard,
+            theme: ChartTheme.light,
+            style: {
+                backgroundColor: '#ffffff',
+                showGrid: true,
+                grid: {
+                    lineColor: 'rgba(15, 23, 42, 0.09)',
+                    lineWidth: 1,
+                    gridSpacing: 56,
+                    lineDash: [],
+                    color: 'rgba(15, 23, 42, 0.09)',
+                },
+                axes: {
+                    textColor: '#1e293b',
+                    lineColor: 'rgba(15, 23, 42, 0.14)',
+                    font: '12px Inter, system-ui, sans-serif',
+                },
+                candles: {
+                    bullColor: '#059669',
+                    bearColor: '#dc2626',
+                    upColor: '#059669',
+                    downColor: '#dc2626',
+                    borderColor: 'rgba(15, 23, 42, 0.22)',
+                    borderWidth: 1,
+                    bodyWidthFactor: 0.62,
+                    spacingFactor: 0.18,
+                },
+                histogram: {
+                    bullColor: 'rgba(5, 150, 105, 0.45)',
+                    bearColor: 'rgba(220, 38, 38, 0.45)',
+                    opacity: 0.55,
+                    heightRatio: 0.24,
+                },
+                bar: {
+                    bullColor: '#059669',
+                    bearColor: '#dc2626',
+                    opacity: 0.88,
+                },
+                line: { color: '#2563eb', lineWidth: 2 },
+                area: {
+                    fillColor: 'rgba(37, 99, 235, 0.12)',
+                    strokeColor: '#2563eb',
+                    lineWidth: 2,
+                },
+            },
+        },
+    }),
+};
+
+/** Standard dark “core” look for the demo (not {@link TickUpStandardEngine}, which resets to light defaults). */
+const demoStandardDarkEngine: TickUpChartEngine = {
+    id: 'demo-standard-dark',
+    getChartOptionsPatch: () => ({
+        base: {
+            engine: TickUpRenderEngine.standard,
+            theme: ChartTheme.dark,
+            style: {
+                backgroundColor: '#0b0e14',
+                showGrid: true,
+                grid: {
+                    lineColor: 'rgba(255,255,255,0.07)',
+                    lineWidth: 1,
+                    gridSpacing: 56,
+                    lineDash: [],
+                    color: 'rgba(255,255,255,0.07)',
+                },
+                axes: {
+                    textColor: '#9ca3af',
+                    lineColor: 'rgba(255,255,255,0.12)',
+                    font: '12px Inter, system-ui, sans-serif',
+                },
+                candles: {
+                    bullColor: '#34d399',
+                    bearColor: '#f87171',
+                    upColor: '#34d399',
+                    downColor: '#f87171',
+                    borderColor: 'rgba(255,255,255,0.2)',
+                    borderWidth: 1,
+                    bodyWidthFactor: 0.62,
+                    spacingFactor: 0.18,
+                },
+                histogram: {
+                    bullColor: 'rgba(52, 211, 153, 0.5)',
+                    bearColor: 'rgba(248, 113, 113, 0.5)',
+                    opacity: 0.5,
+                    heightRatio: 0.24,
+                },
+                bar: {
+                    bullColor: '#34d399',
+                    bearColor: '#f87171',
+                    opacity: 0.85,
+                },
+                line: { color: '#60a5fa', lineWidth: 2 },
+                area: {
+                    fillColor: 'rgba(96, 165, 250, 0.15)',
+                    strokeColor: '#60a5fa',
+                    lineWidth: 2,
+                },
+            },
+        },
+    }),
+};
+
+type TickUpDemoProps = {
+    onOpenCompare?: () => void;
+    /** Optional custom data-feed hook for interval selection from chart UI / imperative API. */
+    onIntervalFeedRequest?: (interval: DemoIntervalKey) => void | boolean | Promise<void | boolean>;
+    /** Optional custom data-feed hook for range selection from chart UI / imperative API. */
+    onRangeFeedRequest?: (range: DemoRangeKey) => void | boolean | Promise<void | boolean>;
+};
+
+const HOST_TO_DEMO_RANGE: Record<string, DemoRangeKey> = {
+    '1D': '6h',
+    '1W': '7d',
+    '5D': '7d',
+    '1M': '7d',
+    '3M': '6mo',
+    '6M': '6mo',
+    'YTD': '6mo',
+    '1Y': '2y',
+    '5Y': '2y',
+    'All': '2y',
+};
+
+const DEMO_TO_HOST_RANGE: Record<DemoRangeKey, RangeKey> = {
+    '20m': '1D',
+    '6h': '1D',
+    '7d': '5D',
+    '6mo': '6M',
+    '2y': '1Y',
+};
+
+function isThenable(v: unknown): v is Promise<unknown> {
+    return v != null && typeof (v as Promise<unknown>).then === 'function';
+}
+
+function rangeSecondsFor(r: DemoRangeKey): number {
+    switch (r) {
+        case '20m':
+            return 20 * 60;
+        case '6h':
+            return 6 * 3600;
+        case '7d':
+            return 7 * 86400;
+        case '6mo':
+            return 180 * 86400;
+        case '2y':
+            return 2 * 365 * 86400;
+        default:
+            return 7 * 86400;
+    }
+}
+
+export default function TickUpDemo({ onOpenCompare, onIntervalFeedRequest, onRangeFeedRequest }: TickUpDemoProps) {
+    const chartRef = useRef<TickUpHostHandle | null>(null);
+    /** Follow OS vs forced appearance; resolved into `shellTheme` below. */
+    const [themePreference, setThemePreference] = useState<ThemePreference>('system');
+    const systemPrefersDark = usePrefersColorSchemeDark();
+    const shellTheme = useMemo<ChartTheme>(() => {
+        if (themePreference === 'system') {
+            return systemPrefersDark ? ChartTheme.dark : ChartTheme.light;
+        }
+        return themePreference as ChartTheme;
+    }, [themePreference, systemPrefersDark]);
+    const [timeframe, setTimeframe] = useState<DemoIntervalKey>('5m');
+    const [range, setRange] = useState<DemoRangeKey>('7d');
+    const [chartKind, setChartKind] = useState<ChartKind>('candle');
+    const [primeMode, setPrimeMode] = useState(false);
+    const [showTickPreviews, setShowTickPreviews] = useState(true);
+    const [symbol, setSymbol] = useState<DemoSymbol>('TICKUP');
+    const [symbolDraft, setSymbolDraft] = useState<string>('TICKUP');
+    const [emaOn, setEmaOn] = useState(true);
+    const [toast, setToast] = useState<string | null>(null);
+    const [activeTool, setActiveTool] = useState<'cursor' | 'line' | 'ray' | 'fib' | 'pencil'>('cursor');
+    const [liveTrading, setLiveTrading] = useState(true);
+    const toastTimerRef = useRef<number | null>(null);
+
+    const showToastNow = useCallback((message: string, timeoutMs = 4200) => {
+        setToast(message);
+        if (toastTimerRef.current != null) {
+            window.clearTimeout(toastTimerRef.current);
+        }
+        toastTimerRef.current = window.setTimeout(() => {
+            setToast(null);
+            toastTimerRef.current = null;
+        }, timeoutMs);
+    }, []);
+
+    useEffect(() => () => {
+        if (toastTimerRef.current != null) {
+            window.clearTimeout(toastTimerRef.current);
+        }
+    }, []);
+
+    const normalizeIntervalKey = useCallback((rawTf: string): DemoIntervalKey | null => {
+        const clean = rawTf.trim();
+        const match = demoMarketData.intervals.find((k) => k.toLowerCase() === clean.toLowerCase());
+        return match ?? null;
+    }, []);
+
+    const intervalRank = useMemo(() => {
+        const out = new Map<DemoIntervalKey, number>();
+        demoMarketData.intervals.forEach((k, i) => out.set(k, i));
+        return out;
+    }, []);
+
+    const estimateRawBarCount = useCallback(
+        (r: DemoRangeKey, tf: DemoIntervalKey) => {
+            if (primeMode) {
+                return 100_000;
+            }
+            const intervalSec = demoMarketData.intervalSecByKey[tf];
+            const barsForRange = Math.max(1, Math.round(rangeSecondsFor(r) / Math.max(intervalSec, 1)));
+            return Math.max(1500, barsForRange * 4);
+        },
+        [primeMode]
+    );
+
+    const isSafeCombo = useCallback(
+        (r: DemoRangeKey, tf: DemoIntervalKey) => estimateRawBarCount(r, tf) <= MAX_DEMO_HISTORY_BARS,
+        [estimateRawBarCount]
+    );
+
+    const findSafeIntervalForRange = useCallback(
+        (r: DemoRangeKey, fromTf: DemoIntervalKey): DemoIntervalKey | null => {
+            const currentIdx = intervalRank.get(fromTf) ?? 0;
+            for (let i = currentIdx; i < demoMarketData.intervals.length; i++) {
+                const candidate = demoMarketData.intervals[i];
+                if (isSafeCombo(r, candidate)) {
+                    return candidate;
+                }
+            }
+            return null;
+        },
+        [intervalRank, isSafeCombo]
+    );
+
+    const findFallbackRangeForInterval = useCallback(
+        (tf: DemoIntervalKey, fromRange: DemoRangeKey): DemoRangeKey | null => {
+            const startIdx = DEMO_RANGES.indexOf(fromRange);
+            for (let i = startIdx; i >= 0; i--) {
+                const candidate = DEMO_RANGES[i];
+                if (isSafeCombo(candidate, tf)) {
+                    return candidate;
+                }
+            }
+            return null;
+        },
+        [isSafeCombo]
+    );
+
+    const requestIntervalSwitch = useCallback(
+        (rawTf: string, source: 'ui' | 'chart' | 'api'): boolean | Promise<boolean> => {
+            const nextTf = normalizeIntervalKey(rawTf);
+            if (!nextTf) {
+                showToastNow(`Unsupported interval "${rawTf}". Available: ${demoMarketData.intervals.join(', ')}.`);
+                return false;
+            }
+            if (nextTf === timeframe) {
+                return true;
+            }
+            if (!primeMode && !isSafeCombo(range, nextTf)) {
+                const fallbackRange = findFallbackRangeForInterval(nextTf, range);
+                if (!fallbackRange) {
+                    showToastNow(`Interval "${nextTf}" is blocked for current safety limits. Choose a coarser interval.`);
+                    return false;
+                }
+                showToastNow(`Interval "${nextTf}" requires a shorter range. Auto-switched range to "${fallbackRange}".`, 3000);
+                setRange(fallbackRange);
+            }
+            const apply = () => {
+                setTimeframe(nextTf);
+                return true;
+            };
+            if (!onIntervalFeedRequest) {
+                if (source !== 'ui') {
+                    showToastNow('No external interval data-feed handler is bound. Using the built-in demo feed.');
+                }
+                return apply();
+            }
+            try {
+                const outcome = onIntervalFeedRequest(nextTf);
+                if (isThenable(outcome)) {
+                    return outcome.then(
+                        (ok) => {
+                            if (ok === false) {
+                                showToastNow(`Interval "${nextTf}" was rejected by the data-feed handler.`);
+                                return false;
+                            }
+                            return apply();
+                        },
+                        (err) => {
+                            const msg = typeof err === 'string' ? err : (err as any)?.message || `Failed to load interval "${nextTf}".`;
+                            showToastNow(msg);
+                            return false;
+                        }
+                    );
+                }
+                if (outcome === false) {
+                    showToastNow(`Interval "${nextTf}" was rejected by the data-feed handler.`);
+                    return false;
+                }
+                return apply();
+            } catch (err) {
+                const msg = typeof err === 'string' ? err : (err as any)?.message || `Failed to load interval "${nextTf}".`;
+                showToastNow(msg);
+                return false;
+            }
+        },
+        [normalizeIntervalKey, onIntervalFeedRequest, showToastNow, timeframe, range, primeMode, isSafeCombo, findFallbackRangeForInterval]
+    );
+
+    const requestRangeSwitch = useCallback(
+        (nextRange: DemoRangeKey, source: 'ui' | 'chart' | 'api') => {
+            if (nextRange === range) {
+                return true;
+            }
+            if (!primeMode && !isSafeCombo(nextRange, timeframe)) {
+                const safeInterval = findSafeIntervalForRange(nextRange, timeframe);
+                if (!safeInterval) {
+                    showToastNow(`Range "${nextRange}" is unavailable for current limits. Pick a shorter range.`, 3200);
+                    return false;
+                }
+                const switched = requestIntervalSwitch(safeInterval, 'api');
+                if (isThenable(switched)) {
+                    return switched.then((ok) => {
+                        if (!ok) return false;
+                        showToastNow(`Auto-switched interval to "${safeInterval}" for "${nextRange}" range.`, 3000);
+                        setRange(nextRange);
+                        return true;
+                    });
+                }
+                if (!switched) return false;
+                showToastNow(`Auto-switched interval to "${safeInterval}" for "${nextRange}" range.`, 3000);
+                setRange(nextRange);
+                return true;
+            }
+            const apply = () => {
+                setRange(nextRange);
+                return true;
+            };
+            if (!onRangeFeedRequest) {
+                if (source !== 'ui') {
+                    showToastNow('No external range data-feed handler is bound. Using the built-in demo feed.');
+                }
+                return apply();
+            }
+            try {
+                const outcome = onRangeFeedRequest(nextRange);
+                if (isThenable(outcome)) {
+                    return outcome.then(
+                        (ok) => {
+                            if (ok === false) {
+                                showToastNow(`Range "${nextRange}" was rejected by the data-feed handler.`);
+                                return false;
+                            }
+                            return apply();
+                        },
+                        (err) => {
+                            const msg = typeof err === 'string' ? err : (err as any)?.message || `Failed to load range "${nextRange}".`;
+                            showToastNow(msg);
+                            return false;
+                        }
+                    );
+                }
+                if (outcome === false) {
+                    showToastNow(`Range "${nextRange}" was rejected by the data-feed handler.`);
+                    return false;
+                }
+                return apply();
+            } catch (err) {
+                const msg = typeof err === 'string' ? err : (err as any)?.message || `Failed to load range "${nextRange}".`;
+                showToastNow(msg);
+                return false;
+            }
+        },
+        [onRangeFeedRequest, showToastNow, range, primeMode, isSafeCombo, timeframe, findSafeIntervalForRange, requestIntervalSwitch]
+    );
+
+    const intervalSec = demoMarketData.intervalSecByKey[timeframe];
+    const barsForRange = useMemo(() => {
+        switch (range) {
+            case '20m':
+                return Math.max(30, Math.round((20 * 60) / intervalSec));
+            case '6h':
+                return Math.max(60, Math.round((6 * 3600) / intervalSec));
+            case '7d':
+                return Math.max(120, Math.round((7 * 86400) / intervalSec));
+            case '6mo':
+                return Math.max(180, Math.round((180 * 86400) / intervalSec));
+            case '2y':
+                return Math.max(260, Math.round((2 * 365 * 86400) / intervalSec));
+            default:
+                return 300;
+        }
+    }, [range, intervalSec]);
+
+    const rawBarCount = primeMode ? 100_000 : Math.max(1500, barsForRange * 4);
+    const barCount = Math.min(MAX_DEMO_HISTORY_BARS, rawBarCount);
+    const layoutResetKey = `${symbol}-${timeframe}-${range}-${primeMode}-${barCount}-${chartKind}`;
+    const hostKey = layoutResetKey;
+    const lastLayoutKeyRef = useRef<string | null>(null);
+
+    const [baseIntervals, setBaseIntervals] = useState<Interval[]>([]);
+    const baseIntervalsRef = useRef<Interval[]>([]);
+    useEffect(() => {
+        baseIntervalsRef.current = baseIntervals;
+    }, [baseIntervals]);
+
+    useEffect(() => {
+        let cancelled = false;
+        (async () => {
+            try {
+                if (rawBarCount > MAX_DEMO_HISTORY_BARS) {
+                    showToastNow(
+                        `Range ${range} at ${timeframe} is capped to ${MAX_DEMO_HISTORY_BARS.toLocaleString()} bars for stable rendering.`,
+                        2800
+                    );
+                }
+                const res = await demoMarketData.history({
+                    symbol,
+                    interval: timeframe,
+                    count: barCount,
+                    endTimeSec: 1_700_000_000,
+                });
+                if (cancelled) return;
+                setBaseIntervals(res.intervals);
+            } catch (e) {
+                if (cancelled) return;
+                showToastNow(String((e as any)?.message ?? e));
+            }
+        })();
+        return () => {
+            cancelled = true;
+        };
+    }, [symbol, timeframe, range, rawBarCount, barCount, showToastNow]);
+
+    useEffect(() => {
+        if (!liveTrading) return;
+        const sub = demoMarketData.subscribeLive({
+            symbol,
+            interval: timeframe,
+            tickMs: LIVE_TICK_MS,
+            getCurrent: () => baseIntervalsRef.current,
+            onUpdate: (next) => setBaseIntervals(next),
+        });
+        return () => sub.stop();
+    }, [liveTrading, symbol, timeframe]);
+
+    const displayIntervals = useMemo(
+        () => (chartKind === 'heikin' ? toHeikinAshi(baseIntervals) : baseIntervals),
+        [baseIntervals, chartKind]
+    );
+
+    const initialVisibleTimeRange = useMemo(() => {
+        if (!displayIntervals.length) {
+            return { start: 0, end: 1 };
+        }
+        const last = displayIntervals[displayIntervals.length - 1];
+        return { start: displayIntervals[0].t, end: last.t + intervalSec };
+    }, [displayIntervals, intervalSec]);
+
+    const overlayKinds = useMemo(() => {
+        type EmaOverlay = { kind: OverlayKind.ema; period: number };
+        const list: EmaOverlay[] = [];
+        if (emaOn) {
+            list.push({ kind: OverlayKind.ema, period: 21 });
+        }
+        return list;
+    }, [emaOn]);
+
+    /**
+     * Keep props in lockstep with {@link useLayoutEffect} `setEngine` so grid/candles/theme never disagree
+     * (avoids light grid on dark plots when `chartOptions` merges before the engine patch applies).
+     */
+    const primeEngineForShell = useMemo(() => createTickUpPrimeEngine(shellTheme), [shellTheme]);
+
+    const chartOptions = useMemo(() => {
+        const patch = primeMode
+            ? getTickUpPrimeThemePatch(shellTheme)
+            : (shellTheme === ChartTheme.dark ? demoStandardDarkEngine : demoStandardLightEngine).getChartOptionsPatch();
+        const b = patch.base ?? {};
+        const st = b.style ?? {};
+        const ax = st.axes ?? {};
+        const effectiveLocale = navigator?.language || 'en-US';
+        const locale = typeof effectiveLocale === 'string' ? effectiveLocale : 'en-US';
+        const language = locale.split('-')[0] || 'en';
+        const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+        return {
+            base: {
+                ...b,
+                engine: primeMode ? TickUpRenderEngine.prime : TickUpRenderEngine.standard,
+                theme: shellTheme,
+                chartType: CHART_KIND_TO_TYPE[chartKind],
+                showHistogram: true,
+                showOverlayLine: overlayKinds.length > 0,
+                overlayKinds,
+                showCrosshair: true,
+                showCrosshairValues: true,
+                showCandleTooltip: true,
+                style: {
+                    ...st,
+                    axes: {
+                        ...ax,
+                        timezone,
+                        locale,
+                        language,
+                        dateFormat: ax.dateFormat ?? 'MMM d',
+                    },
+                },
+            },
+            axes: {
+                yAxisPosition: AxesPosition.right,
+                numberOfYTicks: 8,
+            },
+        };
+    }, [overlayKinds, chartKind, shellTheme, primeMode]);
+
+    useLayoutEffect(() => {
+        let raf = 0;
+        raf = requestAnimationFrame(() => {
+            const r = chartRef.current;
+            if (!r?.setEngine) {
+                return;
+            }
+            if (primeMode) {
+                r.setEngine(primeEngineForShell);
+            } else if (shellTheme === 'dark') {
+                r.setEngine(demoStandardDarkEngine);
+            } else {
+                r.setEngine(demoStandardLightEngine);
+            }
+        });
+        return () => cancelAnimationFrame(raf);
+    }, [primeMode, hostKey, shellTheme, primeEngineForShell]);
+
+    /** Full fit when dataset / layout changes (e.g. timeframe toggle). */
+    useEffect(() => {
+        const id = requestAnimationFrame(() => {
+            const ref = chartRef.current;
+            if (!ref) return;
+            if (lastLayoutKeyRef.current !== layoutResetKey) {
+                lastLayoutKeyRef.current = layoutResetKey;
+                ref.fitVisibleRangeToData?.();
+            }
+        });
+        return () => cancelAnimationFrame(id);
+    }, [layoutResetKey]);
+
+    const [tickPreviewCards, setTickPreviewCards] = useState<
+        { label: string; intervalKey: DemoIntervalKey; intervalSec: number; intervals: Interval[]; visible: { start: number; end: number } }[]
+    >([]);
+    useEffect(() => {
+        let cancelled = false;
+        (async () => {
+            const cards: { label: string; intervalKey: DemoIntervalKey; count: number; visibleBars: number }[] = [
+                { label: '20m window · 1m bars', intervalKey: '1m', count: 900, visibleBars: 20 },
+                { label: '6h window · 5m bars', intervalKey: '5m', count: 1400, visibleBars: 72 },
+                { label: '7d window · 1h bars', intervalKey: '1h', count: 1400, visibleBars: 7 * 24 },
+                { label: '6mo window · 1d bars', intervalKey: '1D', count: 800, visibleBars: 180 },
+                { label: '2y window · 1w bars', intervalKey: '1W', count: 520, visibleBars: 104 },
+            ];
+            const out: {
+                label: string;
+                intervalKey: DemoIntervalKey;
+                intervalSec: number;
+                intervals: Interval[];
+                visible: { start: number; end: number };
+            }[] = [];
+            for (const c of cards) {
+                const res = await demoMarketData.history({
+                    symbol,
+                    interval: c.intervalKey,
+                    count: c.count,
+                    endTimeSec: 1_700_000_000,
+                });
+                const s = res.intervals;
+                const end = s[s.length - 1]?.t ?? 1_700_000_000;
+                const start = end - Math.max(res.intervalSec, 1) * c.visibleBars;
+                out.push({
+                    label: c.label,
+                    intervalKey: c.intervalKey,
+                    intervalSec: res.intervalSec,
+                    intervals: s,
+                    visible: { start, end: end + res.intervalSec },
+                });
+            }
+            if (cancelled) return;
+            setTickPreviewCards(out);
+        })();
+        return () => {
+            cancelled = true;
+        };
+    }, [symbol]);
+
+    const showFibComingSoon = useCallback(() => {
+        showToastNow('Fibonacci retracement is on the Pro roadmap — see documentation/15.');
+    }, [showToastNow]);
+
+    const setModeSafe = useCallback((mode: Mode) => {
+        chartRef.current?.setInteractionMode?.(mode);
+    }, []);
+
+    const onToolPencil = () => {
+        setActiveTool('pencil');
+        setModeSafe(Mode.drawLine);
+    };
+
+    const onToolCursor = () => {
+        setActiveTool('cursor');
+        setModeSafe(Mode.select);
+    };
+
+    const onToolLine = () => {
+        setActiveTool('line');
+        setModeSafe(Mode.drawLine);
+    };
+
+    const onToolRay = () => {
+        setActiveTool('ray');
+        setModeSafe(Mode.drawLine);
+    };
+
+    const onToolFib = () => {
+        setActiveTool('fib');
+        showFibComingSoon();
+        setModeSafe(Mode.none);
+    };
+
+    const onToolEraser = () => {
+        chartRef.current?.deleteSelectedDrawing?.();
+        showToastNow('Eraser: removes the selected drawing (select a shape first).', 2800);
+    };
+
+    const chartTypeButtons: { key: ChartKind; label: string; Icon: typeof CandlestickChart }[] = [
+        { key: 'candle', label: 'Candle', Icon: CandlestickChart },
+        { key: 'area', label: 'Area', Icon: AreaChart },
+        { key: 'line', label: 'Line', Icon: LineChart },
+        { key: 'heikin', label: 'Heikin', Icon: Flame },
+    ];
+
+    const isPageDark = shellTheme === ChartTheme.dark;
+    const panelGlass = isPageDark ? 'glass-panel' : 'glass-panel-light';
+    const themeAfterQuickClick: ChartTheme = shellTheme === ChartTheme.light ? ChartTheme.dark : ChartTheme.light;
+    
+    return (
+        <div
+            className={`min-h-screen overflow-y-auto font-sans ${isPageDark ? 'bg-[#0B0E14] text-[#E7EBFF]' : 'bg-[#f1f5f9] text-slate-800'
+                }`}
+            style={{ colorScheme: isPageDark ? 'dark' : 'light' }}
+        >
+            <header
+                className={`sticky top-0 z-40 flex min-h-[5.5rem] shrink-0 items-center justify-between gap-3 border-b px-4 py-2.5 backdrop-blur-md md:min-h-[5.75rem] md:px-6 md:py-3 ${isPageDark
+                    ? 'border-white/10 bg-[#0B0E14]/92'
+                    : 'border-slate-200/90 bg-[#f8fafc]/95'
+                    }`}
+            >
+                <a
+                    href={DOCS_HUB_URL}
+                    className="flex min-w-0 items-center gap-2 py-0.5"
+                    target="_blank"
+                    rel="noreferrer"
+                    aria-label="Open documentation"
+                    title="Open docs"
+                >
+                    <span className={`text-base font-extrabold tracking-tight ${isPageDark ? 'text-white' : 'text-slate-900'}`}>
+                        TickUp <span className="text-[#3EC5FF]">Charts</span>
+                    </span>
+                    <span className={`${isPageDark ? 'text-slate-500' : 'text-slate-500'} hidden text-xs font-semibold uppercase tracking-wider sm:inline`}>
+                        Tick demo
+                    </span>
+                </a>
+                <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
+                    <div
+                        className={`flex rounded-lg border p-0.5 text-[10px] font-semibold uppercase tracking-wide ${isPageDark ? 'border-white/15 bg-black/30' : 'border-slate-300 bg-white/90'
+                            }`}
+                        role="group"
+                        aria-label="Page and chart theme"
+                    >
+                        {(['system', ChartTheme.light, ChartTheme.dark] as const).map((pref) => (
+                            <button
+                                key={pref}
+                                type="button"
+                                aria-pressed={themePreference === pref}
+                                onClick={() => setThemePreference(pref)}
+                                className={`rounded-md px-2 py-1 transition-colors ${themePreference === pref
+                                    ? isPageDark
+                                        ? 'bg-white/18 text-white shadow-sm'
+                                        : 'bg-slate-200 text-slate-900 shadow-sm'
+                                    : isPageDark
+                                        ? 'text-slate-400 hover:text-slate-200'
+                                        : 'text-slate-600 hover:text-slate-900'
+                                    }`}
+                            >
+                                {pref === 'system' ? 'System' : pref === 'light' ? 'Light' : 'Dark'}
+                            </button>
+                        ))}
+                    </div>
+                    <button
+                        type="button"
+                        title={`After click: ${themeAfterQuickClick} theme`}
+                        aria-label={`Switch to ${themeAfterQuickClick} theme`}
+                        onClick={() => setThemePreference(themeAfterQuickClick)}
+                        className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full border transition-colors ${isPageDark
+                            ? 'border-white/15 text-slate-200 hover:border-[#3EC5FF]/40 hover:text-white'
+                            : 'border-slate-300 text-slate-600 hover:border-slate-400 hover:text-slate-900'
+                            }`}
+                    >
+                        {shellTheme === ChartTheme.light ? (
+                            <Moon className="h-4 w-4" aria-hidden />
+                        ) : (
+                            <Sun className="h-4 w-4" aria-hidden />
+                        )}
+                    </button>
+                    <a
+                        href={DOCS_HUB_URL}
+                        target="_blank"
+                        rel="noreferrer"
+                        className={`inline-flex shrink-0 items-center gap-1 rounded-lg border px-2 py-1.5 text-[11px] font-medium transition-colors sm:px-2.5 sm:text-xs ${isPageDark
+                            ? 'border-white/10 text-slate-200 hover:border-[#3EC5FF]/45'
+                            : 'border-slate-300 text-slate-700 hover:border-[#3EC5FF]/50'
+                            }`}
+                        title="TickUp Charts documentation (quick start, API, Prime, live data)"
+                    >
+                        <BookOpen className="h-3.5 w-3.5 shrink-0 text-[#3EC5FF]" aria-hidden />
+                        <span className="sm:hidden">Docs</span>
+                        <span className="hidden sm:inline">Documentation</span>
+                    </a>
+                    <button
+                        type="button"
+                        onClick={() => setPrimeMode((p) => !p)}
+                        className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[11px] font-semibold transition-all md:text-xs ${primeMode
+                            ? 'border-[#3EC5FF] bg-[#5A48DE] text-white'
+                            : isPageDark
+                                ? 'border-white/15 text-slate-300 hover:border-white/25'
+                                : 'border-slate-300 text-slate-700 hover:border-slate-400'
+                            }`}
+                    >
+                        <Zap className="h-3.5 w-3.5" fill={primeMode ? 'currentColor' : 'none'} />
+                        Prime
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => setShowTickPreviews((v) => !v)}
+                        className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[11px] font-semibold transition-all md:text-xs ${showTickPreviews
+                            ? 'border-[#3EC5FF]/60 bg-[#3EC5FF]/10 text-[#3EC5FF]'
+                            : isPageDark
+                                ? 'border-white/15 text-slate-300 hover:border-white/25'
+                                : 'border-slate-300 text-slate-700 hover:border-slate-400'
+                            }`}
+                        aria-pressed={showTickPreviews}
+                        title={showTickPreviews ? 'Hide tick preview charts' : 'Show tick preview charts'}
+                    >
+                        <Layers className="h-3.5 w-3.5" aria-hidden />
+                        Ticks
+                    </button>
+                </div>
+            </header>
+
+            <section
+                className={`mx-auto max-w-3xl space-y-4 border-b px-4 py-8 text-sm leading-relaxed md:px-8 md:text-[15px] md:leading-7 ${isPageDark
+                    ? 'border-white/5 text-slate-400'
+                    : 'border-slate-200 text-slate-600'
+                    }`}
+                aria-labelledby="tickup-playground-about"
+            >
+                <h1
+                    id="tickup-playground-about"
+                    className={`text-lg font-semibold tracking-tight md:text-xl ${isPageDark ? 'text-white' : 'text-slate-900'
+                        }`}
+                >
+                    Canvas-built charts for serious market analysis
+                </h1>
+                <p>
+                    <strong className={isPageDark ? 'font-medium text-slate-200' : 'font-medium text-slate-800'}>
+                        TickUp Charts
+                    </strong>{' '}
+                    ships two entry points so you only pull what you need: the default{' '}
+                    <code className={isPageDark ? 'text-slate-300' : 'rounded bg-slate-200/80 px-1 text-slate-800'}>
+                        tickup
+                    </code>{' '}
+                    package for the stage, types, and live-data utilities, and{' '}
+                    <code className={isPageDark ? 'text-slate-300' : 'rounded bg-slate-200/80 px-1 text-slate-800'}>
+                        tickup/full
+                    </code>{' '}
+                    when you want Pulse, Flow, Command, Desk, drawing tools, settings, CSV/PNG export, and product-ready
+                    chrome.
+                </p>
+                <p>
+                    <a
+                        href={DOCS_HUB_URL}
+                        target="_blank"
+                        rel="noreferrer"
+                        className={`inline-flex items-center gap-1 font-medium underline decoration-[#3EC5FF]/50 underline-offset-2 transition-colors hover:decoration-[#3EC5FF] ${isPageDark ? 'text-[#7dd3fc]' : 'text-[#0369a1]'
+                            }`}
+                    >
+                        <BookOpen className="h-4 w-4 shrink-0 opacity-90" aria-hidden />
+                        Full documentation
+                    </a>{' '}
+                    — quick start, props, imperative API, Prime engine, live data, and more. Browse the{' '}
+                    <a
+                        href={DOCS_TREE_URL}
+                        target="_blank"
+                        rel="noreferrer"
+                        className={`font-medium underline decoration-slate-400/40 underline-offset-2 hover:decoration-[#3EC5FF] ${isPageDark ? 'text-slate-300' : 'text-slate-700'
+                            }`}
+                    >
+                        documentation folder
+                    </a>{' '}
+                    on GitHub for individual guides.
+                </p>
+                <p>
+                    The renderer is{' '}
+                    <strong className={isPageDark ? 'font-medium text-slate-200' : 'font-medium text-slate-800'}>
+                        HTML5 Canvas 2D
+                    </strong>{' '}
+                    end-to-end for pan, zoom, and streaming OHLCV — with merge-by-time helpers so ticks update the forming
+                    bar without rebuilding the series. Host props include{' '}
+                    <code className={isPageDark ? 'text-slate-300' : 'rounded bg-slate-200/80 px-1 text-slate-800'}>
+                        defaultThemeVariant
+                    </code>{' '}
+                    and{' '}
+                    <code className={isPageDark ? 'text-slate-300' : 'rounded bg-slate-200/80 px-1 text-slate-800'}>
+                        themeVariant
+                    </code>{' '}
+                    for initial and controlled shell light/dark, not only the in-app toolbar toggle.
+                </p>
+                <p>
+                    Toggle <strong className={isPageDark ? 'font-medium text-slate-200' : 'font-medium text-slate-800'}>
+                        Prime
+                    </strong>{' '}
+                    to compare the neon engine and glass toolbars. This page defaults to{' '}
+                    <strong className={isPageDark ? 'font-medium text-slate-200' : 'font-medium text-slate-800'}>
+                        light
+                    </strong>{' '}
+                    for crisp axes and symbol labels; use the sun/moon control for dark mode.
+                </p>
+            </section>
+
+            <div
+                className={`flex flex-col border-t lg:min-h-[min(88vh,56rem)] lg:flex-row ${isPageDark ? 'border-white/10' : 'border-slate-200'
+                    }`}
+            >
+                <aside
+                    className={`${panelGlass} flex w-full shrink-0 flex-row items-center justify-center gap-1 border-b py-2 lg:w-14 lg:flex-col lg:justify-start lg:border-b-0 lg:border-r lg:py-6 lg:pl-1 lg:pr-0 ${isPageDark ? 'border-white/10' : 'border-slate-200'
+                        }`}
+                >
+                    <ToolRailBtn isDark={isPageDark} active={activeTool === 'pencil'} label="Trend line (pencil)" onClick={onToolPencil}>
+                        <Pencil className="h-5 w-5" />
+                    </ToolRailBtn>
+                    <ToolRailBtn isDark={isPageDark} active={activeTool === 'cursor'} label="Select" onClick={onToolCursor}>
+                        <MousePointer2 className="h-5 w-5" />
+                    </ToolRailBtn>
+                    <ToolRailBtn isDark={isPageDark} active={activeTool === 'line'} label="Trend line" onClick={onToolLine}>
+                        <TrendingUp className="h-5 w-5" />
+                    </ToolRailBtn>
+                    <ToolRailBtn isDark={isPageDark} active={activeTool === 'fib'} label="Fibonacci" onClick={onToolFib}>
+                        <GitBranch className="h-5 w-5" />
+                    </ToolRailBtn>
+                    <ToolRailBtn isDark={isPageDark} active={activeTool === 'ray'} label="Ray (line tool)" onClick={onToolRay}>
+                        <Layers className="h-5 w-5" />
+                    </ToolRailBtn>
+                    <ToolRailBtn isDark={isPageDark} active={false} label="Eraser" onClick={onToolEraser}>
+                        <Eraser className="h-5 w-5" />
+                    </ToolRailBtn>
+                </aside>
+
+                <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+                    <div
+                        className={`flex flex-col gap-2 border-b px-3 py-2 sm:flex-row sm:items-center sm:justify-between md:px-4 ${isPageDark ? 'border-white/10' : 'border-slate-200'
+                            }`}
+                    >
+                        <div
+                            className={`flex flex-wrap gap-1 rounded-lg border p-1 ${isPageDark
+                                ? 'border-white/10 bg-white/[0.03]'
+                                : 'border-slate-200 bg-white/80'
+                                }`}
+                        >
+                            {chartTypeButtons.map(({ key, label, Icon }) => (
+                                <button
+                                    key={key}
+                                    type="button"
+                                    onClick={() => setChartKind(key)}
+                                    className={`flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-[11px] font-semibold capitalize md:px-3 md:text-xs ${chartKind === key
+                                        ? 'bg-[#3EC5FF] text-black'
+                                        : 'text-slate-400 hover:bg-white/10 hover:text-white'
+                                        }`}
+                                >
+                                    <Icon className="h-3.5 w-3.5 opacity-80" />
+                                    {label}
+                                </button>
+                            ))}
+                        </div>
+                        <nav className="flex flex-wrap gap-1" aria-label="Timeframe">
+                            {demoMarketData.intervals.map((tf) => (
+                                <button
+                                    key={tf}
+                                    type="button"
+                                    onClick={() => {
+                                        void requestIntervalSwitch(tf, 'ui');
+                                    }}
+                                    className={`rounded-md px-2 py-1 font-mono text-[10px] font-medium md:text-xs ${timeframe === tf
+                                        ? 'bg-[#5A48DE]/40 text-violet-200 ring-1 ring-[#3EC5FF]/35'
+                                        : 'text-slate-500 hover:bg-white/10 hover:text-slate-300'
+                                        }`}
+                                >
+                                    {tf}
+                                </button>
+                            ))}
+                        </nav>
+                    </div>
+
+                    <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
+                        <main className="relative min-h-[min(70vh,40rem)] w-full min-w-0 flex-1 p-2 md:min-h-[min(75vh,44rem)] md:p-3">
+                            <div
+                                className={`relative h-[min(75vh,48rem)] min-h-[22rem] w-full overflow-hidden rounded-xl border ${isPageDark
+                                    ? 'border-white/10 bg-[#06080d]'
+                                    : 'border-slate-200 bg-white'
+                                    }`}
+                            >
+                                <TickUpHost
+                                    key={hostKey}
+                                    ref={chartRef}
+                                    themeVariant={shellTheme}
+                                    onThemeVariantChange={setThemePreference}
+                                    intervalsArray={displayIntervals}
+                                    chartOptions={chartOptions}
+                                    showSidebar={false}
+                                    showTopBar={false}
+                                    showSettingsBar
+                                    showAttribution={false}
+                                    initialTimeDetailLevel={TimeDetailLevel.Medium}
+                                    initialNumberOfYTicks={8}
+                                    initialVisibleTimeRange={initialVisibleTimeRange}
+                                    interval={timeframe}
+                                    onIntervalSearch={(tf) => requestIntervalSwitch(tf, 'chart')}
+                                    onIntervalChange={(tf) => {
+                                        void requestIntervalSwitch(tf, 'api');
+                                    }}
+                                    range={DEMO_TO_HOST_RANGE[range]}
+                                    onRangeChange={(rk) => {
+                                        const mapped = HOST_TO_DEMO_RANGE[String(rk)];
+                                        if (!mapped) {
+                                            showToastNow(`Range "${String(rk)}" is not mapped in this demo. Supported demo ranges: 20m, 6h, 7d, 6mo, 2y.`);
+                                            return;
+                                        }
+                                        void requestRangeSwitch(mapped, 'chart');
+                                    }}
+                                />
+                                {/* Optional decoration (brand assets removed for repo portability). */}
+                            </div>
+
+                            <div className="pointer-events-none absolute bottom-5 left-4 z-20 md:bottom-6 md:left-5">
+                                <ChartHud isDark={isPageDark} primeMode={primeMode} barCount={displayIntervals.length} />
+                            </div>
+
+                            {showTickPreviews && (
+                                <section className="mt-3">
+                                    <div
+                                        className={`mb-2 flex flex-wrap items-baseline justify-between gap-2 px-1 text-[11px] font-semibold ${isPageDark ? 'text-slate-300' : 'text-slate-700'}`}
+                                    >
+                                        <span>Tick previews (different intervals / visible ranges)</span>
+                                        <span className={`${isPageDark ? 'text-slate-500' : 'text-slate-500'} font-normal`}>
+                                            Toggle from the header “Ticks” button
+                                        </span>
+                                    </div>
+                                    <div className="grid grid-cols-1 gap-2 md:grid-cols-2 xl:grid-cols-5">
+                                        {tickPreviewCards.map((card) => (
+                                            <div
+                                                key={card.label}
+                                                className={`overflow-hidden rounded-xl border ${isPageDark ? 'border-white/10 bg-[#06080d]' : 'border-slate-200 bg-white'}`}
+                                            >
+                                                <div
+                                                    className={`flex items-center justify-between gap-2 border-b px-3 py-2 text-[11px] font-semibold ${isPageDark ? 'border-white/10 text-slate-200' : 'border-slate-200 text-slate-700'}`}
+                                                >
+                                                    <span className="truncate">{card.label}</span>
+                                                    <span className={`${isPageDark ? 'text-slate-400' : 'text-slate-500'} font-mono`}>
+                                                        {card.intervalSec}s
+                                                    </span>
+                                                </div>
+                                                <div className="h-[200px] w-full">
+                                                    <TickUpHost
+                                                        key={`${card.label}-${shellTheme}-${primeMode ? 'prime' : 'std'}`}
+                                                        themeVariant={shellTheme}
+                                                        onThemeVariantChange={setThemePreference}
+                                                        intervalsArray={card.intervals}
+                                                        chartOptions={{
+                                                            ...chartOptions,
+                                                            base: {
+                                                                ...chartOptions.base,
+                                                                engine: primeMode ? TickUpRenderEngine.prime : TickUpRenderEngine.standard,
+                                                                theme: shellTheme,
+                                                                chartType: ChartType.Area,
+                                                                showHistogram: false,
+                                                                showCrosshair: false,
+                                                                showCrosshairValues: false,
+                                                            },
+                                                        }}
+                                                        showSidebar={false}
+                                                        showTopBar={false}
+                                                        showSettingsBar={false}
+                                                        showAttribution={false}
+                                                        initialVisibleTimeRange={card.visible}
+                                                    />
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </section>
+                            )}
+                        </main>
+
+                        <aside
+                            className={`${panelGlass} w-full border-t p-4 lg:w-[19rem] lg:border-l lg:border-t-0 md:p-6 ${isPageDark ? 'border-white/10' : 'border-slate-200'
+                                }`}
+                        >
+                            <div className="mb-6 flex items-center justify-between">
+                                <h3
+                                    className={`text-xs font-semibold uppercase tracking-wider ${isPageDark ? 'text-slate-500' : 'text-slate-500'
+                                        }`}
+                                >
+                                    Real-time Ticks
+                                </h3>
+                                <button
+                                    type="button"
+                                    onClick={() => setLiveTrading((l) => !l)}
+                                    className={`relative h-7 w-12 shrink-0 rounded-full transition-colors ${liveTrading ? 'bg-[#34d399]/40' : 'bg-white/10'
+                                        }`}
+                                >
+                                    <span
+                                        className={`absolute top-0.5 left-0.5 h-6 w-6 rounded-full bg-white shadow transition-transform ${liveTrading ? 'translate-x-5' : 'translate-x-0'
+                                            }`}
+                                    />
+                                </button>
+                            </div>
+                            <label
+                                className={`mb-4 block text-xs ${isPageDark ? 'text-slate-400' : 'text-slate-600'}`}
+                            >
+                                Symbol
+                                <div className="mt-1 flex gap-2">
+                                    <select
+                                        value={symbol}
+                                        onChange={(e) => {
+                                            const v = e.target.value as DemoSymbol;
+                                            setSymbol(v);
+                                            setSymbolDraft(v);
+                                        }}
+                                        className={`w-full rounded-lg border px-3 py-2 font-mono text-sm outline-none ring-[#3EC5FF]/40 focus:ring-2 ${isPageDark
+                                            ? 'border-white/10 bg-black/30 text-white'
+                                            : 'border-slate-300 bg-white text-slate-900'
+                                            }`}
+                                    >
+                                        {demoMarketData.symbols.map((s) => (
+                                            <option key={s} value={s}>
+                                                {s}
+                                            </option>
+                                        ))}
+                                    </select>
+                                    <button
+                                        type="button"
+                                        onClick={() => setSymbol(symbolDraft.trim().toUpperCase() as DemoSymbol)}
+                                        className="shrink-0 rounded-lg border border-[#3EC5FF]/40 bg-[#3EC5FF]/10 px-3 py-2 text-sm font-medium text-[#3EC5FF] hover:bg-[#3EC5FF]/20"
+                                    >
+                                        Go
+                                    </button>
+                                </div>
+                            </label>
+
+                            <label
+                                className={`mb-4 block text-xs ${isPageDark ? 'text-slate-400' : 'text-slate-600'}`}
+                            >
+                                Interval
+                                <select
+                                    value={timeframe}
+                                    onChange={(e) => {
+                                        void requestIntervalSwitch(e.target.value, 'ui');
+                                    }}
+                                    className={`mt-1 w-full rounded-lg border px-3 py-2 font-mono text-sm outline-none ring-[#3EC5FF]/40 focus:ring-2 ${isPageDark
+                                        ? 'border-white/10 bg-black/30 text-white'
+                                        : 'border-slate-300 bg-white text-slate-900'
+                                        }`}
+                                >
+                                    {demoMarketData.intervals.map((k) => (
+                                        <option key={k} value={k}>
+                                            {k}
+                                        </option>
+                                    ))}
+                                </select>
+                            </label>
+
+                            <label className={`mb-6 block text-xs ${isPageDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                                Range
+                                <div className="mt-1 grid grid-cols-5 gap-1">
+                                    {DEMO_RANGES.map((r) => {
+                                        const safeNow = primeMode || isSafeCombo(r, timeframe) || findSafeIntervalForRange(r, timeframe) != null;
+                                        return (
+                                        <button
+                                            key={r}
+                                            type="button"
+                                            onClick={() => {
+                                                void requestRangeSwitch(r, 'ui');
+                                            }}
+                                            disabled={!safeNow}
+                                            title={!safeNow ? 'Blocked by safety limits for current/demo intervals' : undefined}
+                                            className={`rounded-md px-2 py-1 text-[11px] font-semibold transition-colors ${range === r
+                                                ? 'bg-[#3EC5FF] text-black'
+                                                : isPageDark
+                                                    ? 'bg-white/5 text-slate-300 hover:bg-white/10'
+                                                    : 'bg-slate-200/60 text-slate-700 hover:bg-slate-200'
+                                                } ${!safeNow ? 'cursor-not-allowed opacity-45' : ''}`}
+                                        >
+                                            {r}
+                                        </button>
+                                        );
+                                    })}
+                                </div>
+                            </label>
+
+                            <h3
+                                className={`mb-2 text-xs font-semibold uppercase tracking-wider ${isPageDark ? 'text-slate-500' : 'text-slate-500'
+                                    }`}
+                            >
+                                Indicators
+                            </h3>
+                            <ul className="space-y-2">
+                                <IndicatorRow
+                                    isDark={isPageDark}
+                                    label="EMA (21)"
+                                    active={emaOn}
+                                    onAdd={() => setEmaOn(true)}
+                                    onRemove={() => setEmaOn(false)}
+                                    supported
+                                />
+                                <IndicatorRow
+                                    isDark={isPageDark}
+                                    label="RSI"
+                                    active={false}
+                                    onAdd={() => undefined}
+                                    onRemove={() => undefined}
+                                    supported={false}
+                                />
+                                <IndicatorRow
+                                    isDark={isPageDark}
+                                    label="MACD"
+                                    active={false}
+                                    onAdd={() => undefined}
+                                    onRemove={() => undefined}
+                                    supported={false}
+                                />
+                                <IndicatorRow
+                                    isDark={isPageDark}
+                                    label="Volume Profile"
+                                    active={false}
+                                    onAdd={() => undefined}
+                                    onRemove={() => undefined}
+                                    supported={false}
+                                />
+                            </ul>
+
+                            <h3
+                                className={`mb-2 mt-6 text-xs font-semibold uppercase tracking-wider ${isPageDark ? 'text-slate-500' : 'text-slate-500'
+                                    }`}
+                            >
+                                Chart Navigation (Imperative)
+                            </h3>
+                            <div className="flex flex-col gap-2">
+                                <DemoSidebarButton
+                                    isDark={isPageDark}
+                                    onClick={() => (chartRef.current as any)?.setInterval('1h')}
+                                    label="Set 1h (by code)"
+                                />
+                                <DemoSidebarButton
+                                    isDark={isPageDark}
+                                    onClick={() => (chartRef.current as any)?.setInterval('1D')}
+                                    label="Set 1D (by code)"
+                                />
+                                <DemoSidebarButton
+                                    isDark={isPageDark}
+                                    onClick={() => (chartRef.current as any)?.setRange('All')}
+                                    label="Fit All (by code)"
+                                />
+                                <DemoSidebarButton
+                                    isDark={isPageDark}
+                                    onClick={() => (chartRef.current as any)?.setRange('1W')}
+                                    label="Show 1W (by code)"
+                                />
+                            </div>
+
+                            <div
+                                className={`mt-6 border-t pt-4 text-xs ${isPageDark ? 'border-white/10 text-slate-500' : 'border-slate-200 text-slate-600'
+                                    }`}
+                            >
+                                <p className="mb-2 font-mono text-[10px] leading-relaxed">
+                                    Data: <code className="text-slate-400">../data-generator.ts</code> ·{' '}
+                                    {liveTrading ? (
+                                        <>
+                                            Live <code className="text-slate-400">{LIVE_TICK_MS}ms</code> ticks
+                                        </>
+                                    ) : (
+                                        'Live paused'
+                                    )}
+                                    · Prime stress path uses {barCount.toLocaleString()} bars.
+                                </p>
+                                {onOpenCompare ? (
+                                    <button
+                                        type="button"
+                                        onClick={onOpenCompare}
+                                        className="text-[#3EC5FF] underline-offset-2 hover:underline"
+                                    >
+                                        API comparison lab (all tiers)
+                                    </button>
+                                ) : null}
+                            </div>
+                        </aside>
+                    </div>
+                </div>
+            </div>
+
+            {toast ? (
+                <div className="fixed bottom-6 left-1/2 z-50 max-w-md -translate-x-1/2 rounded-xl border border-white/10 bg-slate-900/95 px-4 py-3 text-center text-sm text-slate-100 shadow-2xl backdrop-blur-xl">
+                    {toast}
+                </div>
+            ) : null}
+        </div>
+    );
+}
+
+/** HUD updates FPS in isolation so live OHLC ticks do not re-render this counter via the parent. */
+function ChartHud({ isDark, primeMode, barCount }: { isDark: boolean; primeMode: boolean; barCount: number }) {
+    const [fps, setFps] = useState(60);
+    useEffect(() => {
+        let frames = 0;
+        let last = performance.now();
+        let raf = 0;
+        const loop = (now: number) => {
+            frames += 1;
+            const dt = now - last;
+            if (dt >= 500) {
+                setFps(Math.round((frames * 1000) / dt));
+                frames = 0;
+                last = now;
+            }
+            raf = requestAnimationFrame(loop);
+        };
+        raf = requestAnimationFrame(loop);
+        return () => cancelAnimationFrame(raf);
+    }, []);
+
+    return (
+        <div
+            className={`pointer-events-auto rounded-xl border px-3 py-2 font-mono text-[11px] leading-relaxed md:text-xs ${isDark
+                ? 'glass-panel border-white/10 text-[#E7EBFF]'
+                : 'glass-panel-light border-slate-200 text-slate-800'
+                }`}
+        >
+            <div>
+                <span className="text-slate-500">FPS </span>
+                <span className="text-[#3EC5FF]">{fps}</span>
+            </div>
+            <div>
+                <span className="text-slate-500">Engine </span>
+                <span className="text-[#5A48DE]">{primeMode ? 'Prime' : 'Standard'}</span>
+            </div>
+            <div>
+                <span className="text-slate-500">Bars </span>
+                <span className={isDark ? 'text-emerald-300' : 'text-emerald-700'}>
+                    {barCount.toLocaleString()}
+                </span>
+            </div>
+        </div>
+    );
+}
+
+function ToolRailBtn({
+    children,
+    active,
+    label,
+    onClick,
+    isDark = true,
+}: {
+    children: ReactNode;
+    active: boolean;
+    label: string;
+    onClick: () => void;
+    isDark?: boolean;
+}) {
+    return (
+        <button
+            type="button"
+            title={label}
+            aria-label={label}
+            aria-pressed={active}
+            onClick={onClick}
+            className={`flex h-11 w-11 items-center justify-center rounded-xl border transition-all duration-300 ${active
+                ? 'border-[#3EC5FF]/50 bg-[#3EC5FF]/15 text-[#3EC5FF]'
+                : isDark
+                    ? 'border-transparent text-gray-500 hover:border-white/10 hover:text-[#3EC5FF]'
+                    : 'border-transparent text-slate-500 hover:border-slate-300 hover:text-[#3EC5FF]'
+                }`}
+        >
+            {children}
+        </button>
+    );
+}
+
+function IndicatorRow({
+    label,
+    active,
+    supported,
+    onAdd,
+    onRemove,
+    isDark = true,
+}: {
+    label: string;
+    active: boolean;
+    supported: boolean;
+    onAdd: () => void;
+    onRemove: () => void;
+    isDark?: boolean;
+}) {
+    return (
+        <li
+            className={`flex items-center justify-between gap-2 rounded-lg border px-3 py-2 ${isDark ? 'border-white/5 bg-black/20' : 'border-slate-200 bg-white/80'
+                }`}
+        >
+            <span className={`font-mono text-xs ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>{label}</span>
+            {!supported ? (
+                <span className="rounded-md bg-[#5A48DE]/20 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-violet-300">
+                    Planned
+                </span>
+            ) : (
+                <div className="flex gap-1">
+                    <button
+                        type="button"
+                        onClick={onAdd}
+                        disabled={active}
+                        className={`rounded-md border px-2 py-1 text-[11px] disabled:opacity-40 ${isDark
+                            ? 'border-white/10 text-slate-300 enabled:hover:bg-white/10'
+                            : 'border-slate-300 text-slate-700 enabled:hover:bg-slate-100'
+                            }`}
+                    >
+                        Add
+                    </button>
+                    <button
+                        type="button"
+                        onClick={onRemove}
+                        disabled={!active}
+                        className={`rounded-md border px-2 py-1 text-[11px] disabled:opacity-40 ${isDark
+                            ? 'border-white/10 text-slate-300 enabled:hover:bg-red-500/20 enabled:hover:text-red-200'
+                            : 'border-slate-300 text-slate-700 enabled:hover:bg-red-50 enabled:hover:text-red-700'
+                            }`}
+                    >
+                        Remove
+                    </button>
+                </div>
+            )}
+        </li>
+    );
+}
+
+function DemoSidebarButton({
+    label,
+    onClick,
+    isDark = true,
+}: {
+    label: string;
+    onClick: () => void;
+    isDark?: boolean;
+}) {
+    return (
+        <button
+            type="button"
+            onClick={onClick}
+            className={`w-full rounded-lg border px-3 py-2 text-left text-xs font-medium transition-all ${isDark
+                ? 'border-white/10 bg-black/30 text-slate-300 hover:border-[#3EC5FF]/40 hover:text-[#3EC5FF]'
+                : 'border-slate-300 bg-white text-slate-700 hover:border-slate-400 hover:text-slate-900'
+                }`}
+        >
+            {label}
+        </button>
+    );
+}

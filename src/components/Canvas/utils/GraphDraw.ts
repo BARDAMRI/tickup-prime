@@ -1,0 +1,410 @@
+import type {ChartOptions, ChartRenderContext} from "../../../types/chartOptions";
+import {PriceRange} from "../../../types/Graph";
+import {DeepRequired} from "../../../types/types";
+import {OverlayWithCalc, OverlayKind} from "../../../types/overlay";
+import {interpolatedCloseAtTime, lerp, priceToY, timeToX, xFromCenter, xFromStart} from "./GraphHelpers";
+import {drawOverlay, overlay as buildOverlay} from "./drawOverlay";
+
+// =================================================================================
+// == CHART DRAWING FUNCTIONS (Corrected)
+// =================================================================================
+
+/**
+ * Draws horizontal and vertical grid lines on the canvas.
+ * Respects options.base.style.showGrid to be shown or hidden.
+ */
+export function drawGrid(
+    ctx: CanvasRenderingContext2D,
+    canvasWidth: number,
+    canvasHeight: number,
+    options: DeepRequired<ChartOptions>
+) {
+    if (!options.base.style.showGrid) return;
+    const { lineColor, lineWidth, gridSpacing, lineDash } = options.base.style.grid;
+    ctx.save();
+    ctx.strokeStyle = lineColor || '#e0e0e0';
+    ctx.lineWidth = lineWidth || 1;
+    ctx.setLineDash(lineDash as unknown as number[] || []);
+    ctx.globalAlpha = 0.6;
+
+    // Vertical lines
+    for (let x = 0; x <= canvasWidth; x += gridSpacing || 50) {
+        ctx.beginPath();
+        ctx.moveTo(x + 0.5, 0);
+        ctx.lineTo(x + 0.5, canvasHeight);
+        ctx.stroke();
+    }
+
+    // Horizontal lines
+    for (let y = 0; y <= canvasHeight; y += gridSpacing || 50) {
+        ctx.beginPath();
+        ctx.moveTo(0, y + 0.5);
+        ctx.lineTo(canvasWidth, y + 0.5);
+        ctx.stroke();
+    }
+
+    ctx.restore();
+}
+
+export function drawCandlestickChart(ctx: CanvasRenderingContext2D, context: ChartRenderContext, options: DeepRequired<ChartOptions>, visiblePriceRange: PriceRange) {
+
+    const {
+        allIntervals, visibleStartIndex, visibleEndIndex, visibleRange,
+        intervalSeconds, canvasWidth, canvasHeight
+    } = context;
+
+    const loopStartIndex = Math.max(0, visibleStartIndex - 1);
+    const loopEndIndex = Math.min(allIntervals.length - 1, visibleEndIndex + 1);
+
+    if (loopEndIndex < loopStartIndex || allIntervals.length === 0) {
+        return;
+    }
+
+    if (!isFinite(visiblePriceRange.min) || !isFinite(visiblePriceRange.max)) {
+        console.error("[DEBUG] EXIT: Price range is not finite. Check your data for invalid values (NaN, Infinity).");
+        return;
+    }
+    if (!isFinite(visiblePriceRange.range) || visiblePriceRange.range <= 0) {
+        console.error("[DEBUG] EXIT: visiblePriceRange.range is zero or negative.");
+        return;
+    }
+
+    const visibleDuration = visibleRange.end - visibleRange.start;
+    if (visibleDuration <= 0) {
+        console.error("[DEBUG] EXIT: visibleDuration is zero or negative.");
+        return;
+    }
+
+    const candleWidth = (intervalSeconds / visibleDuration) * canvasWidth;
+    const gapFactor = Math.max(0, Math.min(0.4, (options?.base?.style?.candles?.spacingFactor ?? 0.2)));
+    const bodyWidth = candleWidth * (1 - gapFactor);
+
+    let candlesDrawn = 0;
+    for (let i = loopStartIndex; i <= loopEndIndex; i++) {
+        const candle = allIntervals[i];
+        if (!candle) continue;
+
+        const xLeft = xFromStart(candle.t, canvasWidth, visibleRange);
+        const xRight = xLeft + candleWidth;
+
+        if (xRight < 0 || xLeft > canvasWidth) {
+            continue;
+        }
+
+        candlesDrawn++;
+
+        const highY = priceToY(candle.h, canvasHeight, visiblePriceRange);
+        const lowY = priceToY(candle.l, canvasHeight, visiblePriceRange);
+        const openY = priceToY(candle.o, canvasHeight, visiblePriceRange);
+        const closeY = priceToY(candle.c, canvasHeight, visiblePriceRange);
+
+        const isBullish = candle.c >= candle.o;
+        const color = isBullish ? (options?.base?.style?.candles?.bullColor || 'green') : (options?.base?.style?.candles?.bearColor || 'red');
+        const crisp = (v: number) => Math.floor(v) + 0.5;
+
+        const candleMidX = xLeft + candleWidth / 2;
+        ctx.beginPath();
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 1;
+        ctx.moveTo(crisp(candleMidX), crisp(highY));
+        ctx.lineTo(crisp(candleMidX), crisp(lowY));
+        ctx.stroke();
+
+        const bodyTop = Math.min(openY, closeY);
+        const bodyHeight = Math.abs(openY - closeY);
+        ctx.fillStyle = color;
+        const bodyLeft = Math.floor(xLeft + (candleWidth - bodyWidth) / 2);
+        ctx.fillRect(bodyLeft, Math.floor(bodyTop), Math.ceil(bodyWidth), Math.ceil(bodyHeight) || 1);
+    }
+
+    if (options.base.showOverlayLine) {
+        const overlays = options.base.overlays as OverlayWithCalc[] | undefined;
+        if (overlays && overlays.length) {
+            drawOverlay(ctx, context, visiblePriceRange, overlays, options.base.style.overlay);
+        }
+        if (Array.isArray((options.base as any).overlayKinds) && (options.base as any).overlayKinds.length) {
+            const kinds = (options.base as any).overlayKinds as OverlayKind[];
+            const stroke = options.base.style.overlay;
+            const built = kinds.map(k => buildOverlay(k, stroke));
+            drawOverlay(ctx, context, visiblePriceRange, built, stroke);
+        }
+    }
+}
+
+export function drawLineChart(ctx: CanvasRenderingContext2D, context: ChartRenderContext, style: DeepRequired<ChartOptions>, visiblePriceRange: PriceRange) {
+    const {
+        allIntervals,
+        visibleStartIndex,
+        visibleEndIndex,
+        visibleRange,
+        intervalSeconds,
+        canvasWidth,
+        canvasHeight
+    } = context;
+    if (visibleEndIndex < visibleStartIndex || allIntervals.length === 0) return;
+    if (!isFinite(visiblePriceRange.range) || visiblePriceRange.range <= 0) return;
+
+    const dataStart = allIntervals[0].t;
+    const dataEnd = allIntervals[allIntervals.length - 1].t + intervalSeconds;
+    const clipStart = Math.max(visibleRange.start, dataStart);
+    const clipEnd = Math.min(visibleRange.end, dataEnd);
+    if (clipEnd <= clipStart) return;
+
+    const localTimeToX = (t: number) => timeToX(t, canvasWidth, visibleRange);
+    const localPriceToY = (p: number) => priceToY(p, canvasHeight, visiblePriceRange);
+
+    const leftX = xFromStart(clipStart, canvasWidth, visibleRange);
+    const leftY = localPriceToY(interpolatedCloseAtTime(allIntervals, intervalSeconds, clipStart));
+
+    ctx.beginPath();
+    ctx.moveTo(leftX, leftY);
+
+    for (let i = visibleStartIndex; i <= visibleEndIndex; i++) {
+        const it = allIntervals[i];
+        const centerT = it.t + intervalSeconds / 2;
+        if (centerT < clipStart || centerT > clipEnd) continue;
+        const x = xFromCenter(it.t, intervalSeconds, canvasWidth, visibleRange);
+        const y = localPriceToY(it.c);
+        ctx.lineTo(x, y);
+    }
+
+    const rightX = xFromStart(clipEnd, canvasWidth, visibleRange);
+    const rightY = localPriceToY(interpolatedCloseAtTime(allIntervals, intervalSeconds, clipEnd));
+    ctx.lineTo(rightX, rightY);
+    ctx.stroke();
+
+    if (style.base.showOverlayLine) {
+        const overlays = style.base.overlays as OverlayWithCalc[] | undefined;
+        if (overlays && overlays.length) {
+            drawOverlay(ctx, context, visiblePriceRange, overlays, style.base.style.overlay);
+        }
+        if (Array.isArray((style.base as any).overlayKinds) && (style.base as any).overlayKinds.length) {
+            const kinds = (style.base as any).overlayKinds as OverlayKind[];
+            const stroke = style.base.style.overlay;
+            const built = kinds.map(k => buildOverlay(k, stroke));
+            drawOverlay(ctx, context, visiblePriceRange, built, stroke);
+        }
+    }
+}
+
+export function drawAreaChart(ctx: CanvasRenderingContext2D, context: ChartRenderContext, options: DeepRequired<ChartOptions>, visiblePriceRange: PriceRange) {
+    const {
+        allIntervals,
+        visibleStartIndex,
+        visibleEndIndex,
+        visibleRange,
+        intervalSeconds,
+        canvasWidth,
+        canvasHeight
+    } = context;
+    if (visibleEndIndex < visibleStartIndex || allIntervals.length === 0) return;
+    if (!isFinite(visiblePriceRange.range) || visiblePriceRange.range <= 0) return;
+
+    const xOf = (t: number) => xFromStart(t, canvasWidth, visibleRange);
+    const xCenterOf = (tStart: number) => xFromCenter(tStart, intervalSeconds, canvasWidth, visibleRange);
+    const yOf = (p: number) => canvasHeight * (1 - (p - visiblePriceRange.min) / visiblePriceRange.range);
+
+    const dataStart = allIntervals[0].t;
+    const dataEnd = allIntervals[allIntervals.length - 1].t + intervalSeconds;
+    const clipStartTime = Math.max(visibleRange.start, dataStart);
+    const clipEndTime = Math.min(visibleRange.end, dataEnd);
+    if (clipEndTime <= clipStartTime) return;
+
+    const centerOf = (i: number) => allIntervals[i].t + intervalSeconds / 2;
+    const first = allIntervals[0];
+    const lastIdx = allIntervals.length - 1;
+    const lastCtr = centerOf(lastIdx);
+    const pts: Array<{ x: number; y: number }> = [];
+
+    if (clipStartTime >= first.t && clipStartTime < centerOf(0)) {
+        const t0 = first.t, c0 = centerOf(0);
+        const ratio = (clipStartTime - t0) / (c0 - t0);
+        const val = lerp(first.o, first.c, Math.min(Math.max(ratio, 0), 1));
+        pts.push({x: xOf(clipStartTime), y: yOf(val)});
+    } else {
+        const val = interpolatedCloseAtTime(allIntervals, intervalSeconds, clipStartTime);
+        pts.push({x: xOf(clipStartTime), y: yOf(val)});
+    }
+
+    for (let i = visibleStartIndex; i <= visibleEndIndex; i++) {
+        const cT = centerOf(i);
+        if (cT >= clipStartTime && cT <= clipEndTime) {
+            pts.push({x: xCenterOf(allIntervals[i].t), y: yOf(allIntervals[i].c)});
+        }
+    }
+
+    if (clipEndTime < lastCtr) {
+        const val = interpolatedCloseAtTime(allIntervals, intervalSeconds, clipEndTime);
+        pts.push({x: xOf(clipEndTime), y: yOf(val)});
+    } else {
+        pts.push({x: xCenterOf(allIntervals[lastIdx].t), y: yOf(allIntervals[lastIdx].c)});
+    }
+
+    if (pts.length < 2) return;
+
+    const startX = pts[0].x;
+    const endX = pts[pts.length - 1].x;
+
+    ctx.save();
+    ctx.beginPath();
+    ctx.moveTo(pts[0].x, pts[0].y);
+    for (let k = 1; k < pts.length; k++) ctx.lineTo(pts[k].x, pts[k].y);
+    ctx.lineTo(endX, canvasHeight);
+    ctx.lineTo(startX, canvasHeight);
+    ctx.closePath();
+    ctx.fillStyle = options?.base?.style?.area!.fillColor;
+    ctx.fill();
+    ctx.restore();
+
+    ctx.save();
+    ctx.beginPath();
+    ctx.moveTo(pts[0].x, pts[0].y);
+    for (let k = 1; k < pts.length; k++) ctx.lineTo(pts[k].x, pts[k].y);
+    ctx.strokeStyle = options?.base?.style?.area?.strokeColor || 'blue';
+    ctx.lineWidth = options?.base?.style?.area?.lineWidth || 2;
+    ctx.stroke();
+    ctx.restore();
+
+    if (options.base.showOverlayLine) {
+        const overlays = options.base.overlays as OverlayWithCalc[] | undefined;
+        if (overlays && overlays.length) {
+            drawOverlay(ctx, context, visiblePriceRange, overlays, options.base.style.overlay);
+        }
+        if (Array.isArray((options.base as any).overlayKinds) && (options.base as any).overlayKinds.length) {
+            const kinds = (options.base as any).overlayKinds as OverlayKind[];
+            const stroke = options.base.style.overlay;
+            const built = kinds.map(k => buildOverlay(k, stroke));
+            drawOverlay(ctx, context, visiblePriceRange, built, stroke);
+        }
+    }
+}
+
+export function drawBarChart(ctx: CanvasRenderingContext2D, context: ChartRenderContext, options: DeepRequired<ChartOptions>, visiblePriceRange: PriceRange) {
+    const {
+        allIntervals,
+        visibleStartIndex,
+        visibleEndIndex,
+        visibleRange,
+        intervalSeconds,
+        canvasWidth,
+        canvasHeight
+    } = context;
+    if (visibleEndIndex < visibleStartIndex || allIntervals.length === 0) return;
+    if (!isFinite(visiblePriceRange.range) || visiblePriceRange.range <= 0) return;
+
+    const yOf = (p: number) => canvasHeight * (1 - (p - visiblePriceRange.min) / visiblePriceRange.range);
+    const visibleDuration = visibleRange.end - visibleRange.start;
+    if (visibleDuration <= 0) return;
+
+    const candleWidth = (intervalSeconds / visibleDuration) * canvasWidth;
+    if (candleWidth <= 0) return;
+    const gapFactor = Math.max(0, Math.min(0.4, (options?.base?.style?.candles?.spacingFactor ?? 0.2)));
+    const barWidth = candleWidth * (1 - gapFactor);
+    const halfPad = (candleWidth - barWidth) / 2;
+    const crisp = (x: number) => Math.round(x) + 0.5;
+
+    ctx.save();
+    ctx.lineWidth = 1;
+    const baseAlpha = Math.max(0, Math.min(1, options.base.style.bar?.opacity ?? 1));
+
+    for (let i = visibleStartIndex; i <= visibleEndIndex; i++) {
+        const c = allIntervals[i];
+        const xLeftFull = ((c.t - visibleRange.start) / visibleDuration) * canvasWidth;
+        const xLeft = xLeftFull + halfPad;
+        const xRight = xLeft + barWidth;
+        if (xRight < 0 || xLeft > canvasWidth) continue;
+
+        const xMid = xLeftFull + candleWidth / 2;
+        const yHigh = yOf(c.h);
+        const yLow = yOf(c.l);
+        const yOpen = yOf(c.o);
+        const yClose = yOf(c.c);
+
+        const isUp = c.c >= c.o;
+        const strokeCol = (isUp ? options?.base?.style?.bar.bullColor : options?.base?.style?.bar.bearColor) || 'green';
+        ctx.strokeStyle = strokeCol;
+        ctx.globalAlpha = baseAlpha;
+        const tickLen = Math.max(3, Math.min(candleWidth * 0.5, 16));
+
+        ctx.beginPath();
+        ctx.moveTo(crisp(xMid), crisp(yHigh));
+        ctx.lineTo(crisp(xMid), crisp(yLow));
+        ctx.moveTo(crisp(xMid - tickLen), crisp(yOpen));
+        ctx.lineTo(crisp(xMid), crisp(yOpen));
+        ctx.moveTo(crisp(xMid), crisp(yClose));
+        ctx.lineTo(crisp(xMid + tickLen), crisp(yClose));
+        ctx.stroke();
+    }
+    ctx.restore();
+
+    if (options.base.showOverlayLine) {
+        const overlays = options.base.overlays as OverlayWithCalc[] | undefined;
+        if (overlays && overlays.length) {
+            drawOverlay(ctx, context, visiblePriceRange, overlays, options.base.style.overlay);
+        }
+        if (Array.isArray((options.base as any).overlayKinds) && (options.base as any).overlayKinds.length) {
+            const kinds = (options.base as any).overlayKinds as OverlayKind[];
+            const stroke = options.base.style.overlay;
+            const built = kinds.map(k => buildOverlay(k, stroke));
+            drawOverlay(ctx, context, visiblePriceRange, built, stroke);
+        }
+    }
+}
+
+export function drawHistogramChart(ctx: CanvasRenderingContext2D, context: ChartRenderContext, options: DeepRequired<ChartOptions>) {
+    const {
+        allIntervals,
+        visibleStartIndex,
+        visibleEndIndex,
+        visibleRange,
+        intervalSeconds,
+        canvasWidth,
+        canvasHeight
+    } = context;
+    if (!allIntervals.length || visibleEndIndex < visibleStartIndex) return;
+
+    if (!isFinite((visibleRange as any)?.start) || !isFinite((visibleRange as any)?.end)) return;
+
+    const visibleDuration = visibleRange.end - visibleRange.start;
+    if (visibleDuration <= 0) return;
+
+    const candleWidth = (intervalSeconds / visibleDuration) * canvasWidth;
+    const gapFactor = Math.max(0, Math.min(0.4, options?.base?.style?.candles?.spacingFactor ?? 0.2));
+    const barWidth = Math.max(1, candleWidth * (1 - gapFactor));
+    const halfPad = (candleWidth - barWidth) / 2;
+
+    let maxVolume = 0;
+    let hasRealVolume = false;
+    const padStart = Math.max(0, visibleStartIndex - 1);
+    const padEnd = Math.min(allIntervals.length - 1, visibleEndIndex + 1);
+
+    for (let i = padStart; i <= padEnd; i++) {
+        const it = allIntervals[i];
+        const v = it.v ?? Math.max(0, it.h - it.l);
+        if (it.v !== undefined) hasRealVolume = true;
+        if (v > maxVolume) maxVolume = v;
+    }
+    if (maxVolume <= 0) return;
+
+    ctx.save();
+    ctx.globalAlpha = Math.max(0, Math.min(1, options?.base?.style?.histogram?.opacity ?? 0.6));
+    ctx.lineWidth = 0;
+
+    for (let i = visibleStartIndex; i <= visibleEndIndex; i++) {
+        const it = allIntervals[i];
+        const xFull = xFromStart(it.t, canvasWidth, visibleRange);
+        const x = xFull + halfPad;
+        if (x > canvasWidth || x + barWidth < 0) continue;
+
+        const vol = hasRealVolume ? (it.v ?? 0) : Math.max(0, it.h - it.l);
+        if (vol <= 0) continue;
+
+        const h = (vol / maxVolume) * canvasHeight;
+        const yTop = canvasHeight - h;
+
+        const up = it.c >= it.o;
+        ctx.fillStyle = (up ? options.base?.style?.histogram.bullColor : options.base?.style?.histogram?.bearColor) || 'green';
+        ctx.fillRect(x, yTop, barWidth, h);
+    }
+    ctx.restore();
+}

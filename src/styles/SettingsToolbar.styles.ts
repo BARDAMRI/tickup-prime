@@ -1,0 +1,265 @@
+import styled, {css} from 'styled-components';
+
+interface PrimeGlassProps {
+    $primeGlass?: boolean;
+    $primeGlassLight?: boolean;
+}
+
+export const SettingsToolbarContainer = styled.div.attrs({className: 'settings-toolbar-container'})<PrimeGlassProps>`
+    display: flex;
+    flex-direction: row;
+    width: 100%;
+    background: transparent;
+    border-radius: 14px;
+    position: relative;
+    height: clamp(24px, 5vmin, 40px);
+    border: 1px solid rgba(128, 140, 255, 0.18);
+    box-shadow: 0 10px 28px rgba(17, 19, 39, 0.20),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.12);
+    overflow: visible;
+    flex: 0 0 auto;
+    min-width: 0;
+
+    ${({$primeGlass, $primeGlassLight}) =>
+        $primeGlass &&
+        $primeGlassLight &&
+        css`
+            background: rgba(255, 255, 255, 0.82);
+            border: 1px solid rgba(90, 72, 222, 0.22);
+            box-shadow:
+                0 10px 28px rgba(15, 23, 42, 0.08),
+                inset 0 0 0 1px rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+
+            & .settings-toolbar-button {
+                border: 1px solid rgba(90, 72, 222, 0.28);
+                background-color: rgba(255, 255, 255, 0.55);
+
+                &::after {
+                    background: radial-gradient(
+                        120% 120% at 30% 0%,
+                        rgba(255, 255, 255, 0.95) 0%,
+                        rgba(62, 197, 255, 0.12) 52%,
+                        rgba(90, 72, 222, 0.08) 100%
+                    );
+                    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.85);
+                }
+
+                &:hover {
+                    box-shadow: 0 8px 22px rgba(15, 23, 42, 0.12);
+                    background-color: rgba(255, 255, 255, 0.78);
+                    background-image: linear-gradient(
+                        180deg,
+                        rgba(62, 197, 255, 0.4),
+                        rgba(90, 72, 222, 0.38)
+                    );
+                }
+
+                &:hover svg .icon-bg {
+                    fill: rgba(90, 72, 222, 0.35);
+                    stroke: rgba(2, 132, 199, 0.65);
+                }
+            }
+        `}
+
+    ${({$primeGlass, $primeGlassLight}) =>
+        $primeGlass &&
+        !$primeGlassLight &&
+        css`
+            background: rgba(15, 18, 25, 0.7);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+        `}
+`;
+
+const Control = styled.div`
+    height: 36px;
+    border-radius: 10px;
+    border: 1px solid transparent;
+    background-color: rgba(255, 255, 255, 0.06);
+    background-image: linear-gradient(180deg, rgba(62, 197, 255, 0.65), rgba(90, 72, 222, 0.65));
+    background-origin: border-box;
+    background-clip: padding-box, border-box;
+    color: #e7ebff;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25);
+    outline: none;
+    transition: box-shadow 160ms ease, background 160ms ease, transform 120ms ease, border-color 160ms ease;
+
+    &:hover {
+        background-color: rgba(255, 255, 255, 0.09);
+        background-image: linear-gradient(180deg, rgba(62, 197, 255, 0.65), rgba(90, 72, 222, 0.65));
+    }
+`;
+
+export const SettingToolbarContent = styled.div.attrs({className: 'setting-toolbar-content'})`
+    box-sizing: border-box;
+    display: flex;
+    width: 100%;
+    height: 100%;
+    flex-direction: row;
+    align-items: stretch;
+    justify-content: flex-start;
+    overflow-x: auto;
+    gap: 2px;
+    padding: 1px;
+    flex: 1 1 0;
+    min-width: 0;
+
+    /* Hide scrollbars but allow scrolling */
+    /* Hide scrollbars but allow scrolling */
+    -ms-overflow-style: none; /* IE and Edge */
+    scrollbar-width: none; /* Firefox */
+    &::-webkit-scrollbar {
+        display: none; /* Chrome, Safari, Opera */
+    }
+
+    & > * {
+        flex-shrink: 0;
+    }
+
+    & .tooltip-wrapper {
+        height: 100%;
+        aspect-ratio: 1 / 1;
+    }
+`;
+
+export const ToolbarCluster = styled.div`
+    display: inline-flex;
+    flex-direction: row;
+    align-items: stretch;
+    height: 100%;
+    gap: 2px;
+    flex-shrink: 0;
+    min-width: 0;
+`;
+
+/** Symbol field + search control stay adjacent. */
+export const SymbolToolbarCluster = styled(ToolbarCluster)``;
+
+/** Timeframe pills (1m, 5m, etc.) cluster. */
+export const IntervalToolbarCluster = styled(ToolbarCluster)`
+    gap: 1px;
+    padding: 2px 0;
+    margin: 0 4px;
+`;
+
+export const TimeframePill = styled.button<{ $active?: boolean; $isDark?: boolean }>`
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 6px;
+    border: 1px solid transparent;
+    padding: 0 8px;
+    height: 100%;
+    font-size: 11px;
+    font-weight: 700;
+    font-family: inherit;
+    cursor: pointer;
+    transition: all 120ms ease;
+    background: transparent;
+    color: ${props => props.$isDark ? 'rgba(255, 255, 255, 0.65)' : 'rgba(15, 23, 42, 0.7)'};
+    white-space: nowrap;
+
+    &:hover {
+        background: ${props => props.$isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(15, 23, 42, 0.06)'};
+        color: ${props => props.$isDark ? '#fff' : '#0f172a'};
+    }
+
+    ${props => props.$active && css`
+        background: ${props.$isDark ? 'rgba(62, 197, 255, 0.22)' : 'rgba(62, 197, 255, 0.15)'} !important;
+        border-color: rgba(62, 197, 255, 0.45) !important;
+        color: #3ec5ff !important;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    `}
+`;
+
+export const SymbolInput = styled(Control).attrs({as: 'input', type: 'text'})`
+    width: clamp(72px, 14vmin, 140px);
+    min-width: 56px;
+    color: rgba(0, 0, 0, 0.85);
+    font-weight: 600;
+    background-color: white;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 10px 0 10px;
+
+    &::placeholder {
+        color: rgba(50, 60, 90, 0.70);
+    }
+`;
+
+export const Spacer = styled.div.attrs({className: 'spacer'})`
+    position: relative;
+    display: inline-block;
+    flex-grow: 1;
+    min-width: 2px;
+`;
+export const ToolbarHorizontalButtons = styled.button.attrs({className: 'settings-toolbar-button'})`
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    width: 100%;
+    box-sizing: border-box;
+    flex: 0 0 auto;
+    padding: 0;
+    margin: 0;
+    overflow: hidden;
+    text-align: center;
+    font-size: 18px;
+    cursor: pointer;
+    outline: none;
+    border-radius: 12px;
+    border: 1px solid rgba(120, 100, 255, 0.5);
+    background-color: rgba(255, 255, 255, 0.06);
+    background-clip: border-box, padding-box;
+    padding: 0;
+
+    &::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+        border-radius: 12px;
+        background: radial-gradient(120% 120% at 30% 0%, rgba(255, 255, 255, 0.20) 0%, rgba(112, 124, 255, 0.08) 50%, rgba(32, 40, 78, 0.18) 100%);
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25);
+        opacity: 0.9;
+        pointer-events: none;
+    }
+
+    &:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 8px 22px rgba(25, 30, 60, 0.25);
+        background-color: rgba(255, 255, 255, 0.09);
+        background-image: linear-gradient(180deg, rgba(62, 197, 255, 0.65), rgba(90, 72, 222, 0.65));
+    }
+
+    &:active {
+        transform: translateY(0);
+        box-shadow: 0 3px 10px rgba(25, 30, 60, 0.22), inset 0 1px 3px rgba(0, 0, 0, 0.15);
+    }
+
+    /* Make inner SVG breathe inside the square */
+
+    svg {
+        width: 100%;
+        height: 100%;
+        display: block;
+    }
+
+    /* keep strokes readable on small sizes */
+
+    svg * {
+        vector-effect: non-scaling-stroke;
+    }
+
+    /* Icon background reacts on states */
+
+    &:hover svg .icon-bg {
+        fill: rgba(180, 200, 255, 0.30);
+        stroke: rgba(120, 100, 255, 0.60);
+    }
+`;

@@ -23,7 +23,7 @@ Use **`TickUpStage`** from **`tickup`** when you own all surrounding UI; use **`
 
 ## Where to read next
 
-- **Authoritative integration guides:** [`../../documentation/README.md`](../../documentation/README.md) (also shipped inside the npm package under `documentation/`).
+- **Authoritative integration guides:** [https://BARDAMRI.github.io/tickup-charts/](https://BARDAMRI.github.io/tickup-charts/) (also shipped inside the npm package under `documentation/`).
 - **Example app:** [`../../example/README.md`](../../example/README.md) (not published to npm).
 
 This `docs/` tree is **supplementary** (vision, architecture sketches, legacy stubs). For props, ref API, and live data, prefer **`documentation/`**.

@@ -31,4 +31,4 @@ TypeScript loads declarations from **`dist/index.d.ts`** and **`dist/full.d.ts`*
 npm run build
 ```
 
-in a project that depends on `tickup` should resolve both entries. See **[`../../documentation/02-installation.md`](../../documentation/02-installation.md)** for more detail.
+in a project that depends on `tickup` should resolve both entries. See **[https://BARDAMRI.github.io/tickup-charts/](https://BARDAMRI.github.io/tickup-charts/)** for more detail.

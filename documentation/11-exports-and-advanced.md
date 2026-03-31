@@ -2,7 +2,7 @@
 
 Published API is split across **`tickup`** (default) and **`tickup/full`**. Symbols not listed here are **internal** (not semver-stable as public API).
 
-## `tickup` (default — basic charts)
+## `tickup` (default — core charts)
 
 | Export | Role |
 |--------|------|

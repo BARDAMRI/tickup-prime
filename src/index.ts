@@ -1,5 +1,5 @@
 /**
- * **Default npm entry — basic charts:** `TickUpStage`, data helpers, overlays, drawings (types +
+ * **Default npm entry — core charts:** `TickUpStage`, data helpers, overlays, drawings (types +
  * factories), snapshots, and branding. Build your own chrome around the canvas.
  *
  * **Full product UI** (Pulse, Flow, Command, Desk, `TickUpHost`, shape classes, …) is

@@ -14,4 +14,4 @@ This checklist is **historical**; many items below are **already implemented** i
 - [ ] Optional plugin system for third-party indicators (beyond built-in overlay kinds)  
 - [ ] Expanded automated test coverage (Jest is configured in-repo)  
 
-When in doubt, inspect **`src/`** and **[`../../documentation/`](../../documentation/README.md)**.
+When in doubt, inspect **`src/`** and **[https://BARDAMRI.github.io/tickup-charts/](https://BARDAMRI.github.io/tickup-charts/)**.

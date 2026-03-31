@@ -18,4 +18,4 @@ This folder contains **policies and terms** for TickUp Charts products, services
 
 ## Documentation hub
 
-End-user oriented overview: [../documentation/14-legal-and-policies.md](../documentation/14-legal-and-policies.md).
+End-user oriented overview: [https://BARDAMRI.github.io/tickup-charts/](https://BARDAMRI.github.io/tickup-charts/).

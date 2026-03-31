@@ -2,7 +2,7 @@
 
 ## Primary reference (kept in sync with the code)
 
-All **integration** documentation lives in **[`../../documentation/`](../../documentation/README.md)** at the repository root. That folder is **bundled in the npm package** (`node_modules/tickup/documentation/`).
+All **integration** documentation lives at **[https://BARDAMRI.github.io/tickup-charts/](https://BARDAMRI.github.io/tickup-charts/)** and is also bundled in the npm package (`node_modules/tickup/documentation/`).
 
 Start there for:
 
@@ -29,4 +29,4 @@ Start there for:
 
 ## Legacy duplicate
 
-- [`./ SUMMARY.md`](<./ SUMMARY.md>) — older index; prefer this file or the root **`documentation/README.md`**.
+- [`./ SUMMARY.md`](<./ SUMMARY.md>) — older index; prefer this file or the main docs site.

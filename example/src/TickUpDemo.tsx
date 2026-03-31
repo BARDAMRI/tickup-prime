@@ -42,9 +42,9 @@ import {demoMarketData, type DemoIntervalKey, type DemoSymbol} from './demo-data
 
 /** Documentation hub — table of contents for all guides. */
 const DOCS_HUB_URL =
-    'https://github.com/BARDAMRI/tickup-charts/blob/main/documentation/README.md';
-/** Browse the `documentation/` directory on GitHub. */
-const DOCS_TREE_URL = 'https://github.com/BARDAMRI/tickup-charts/tree/main/documentation';
+    'https://BARDAMRI.github.io/tickup-charts/';
+/** Prime docs home. */
+const DOCS_TREE_URL = 'https://BARDAMRI.github.io/tickup-charts/';
 
 type ThemePreference = 'system' | ChartTheme;
 
@@ -894,9 +894,9 @@ export default function TickUpDemo({ onOpenCompare, onIntervalFeedRequest, onRan
                         className={`font-medium underline decoration-slate-400/40 underline-offset-2 hover:decoration-[#3EC5FF] ${isPageDark ? 'text-slate-300' : 'text-slate-700'
                             }`}
                     >
-                        documentation folder
+                        documentation site
                     </a>{' '}
-                    on GitHub for individual guides.
+                    for individual guides.
                 </p>
                 <p>
                     The renderer is{' '}

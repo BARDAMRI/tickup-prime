@@ -27,6 +27,8 @@ The **reference example app** in [`../example/`](../example/) (Vite + React) exe
 | 15 | [Prime engine & Pro roadmap](./15-prime-engine-and-pro-roadmap.md) | Prime render profile, engine usage, roadmap |
 | 16 | [Custom neon themes](./16-custom-neon-themes.md) | How to build and switch premium neon visual variants |
 
+Prime package roadmap: [`../Roadmap.md`](../Roadmap.md)
+
 ## Older material
 
 Additional notes and legacy pages may still live under [`../docs/`](../docs/) (roadmap, contributing, design). The **authoritative integration reference** is this `documentation/` folder.

@@ -1,4 +1,4 @@
-# Basic usage
+# Core usage
 
 TickUp Charts is **not** a vanilla `ChartManager` constructor. You render **React components** and pass **OHLCV intervals** (`Interval`: unix **`t`** in **seconds**, `o`/`h`/`l`/`c`, optional `v`).
 
@@ -37,7 +37,7 @@ Swap **`TickUpCommand`** for **`TickUpPulse`**, **`TickUpFlow`**, or **`TickUpDe
 
 ## Canvas-only stage
 
-From **`tickup`** — you must wrap with **`ModeProvider`** and supply all **`TickUpStage`** props (see types and **[`../../documentation/11-exports-and-advanced.md`](../../documentation/11-exports-and-advanced.md)**):
+From **`tickup`** — you must wrap with **`ModeProvider`** and supply all **`TickUpStage`** props (see the main docs at **[https://BARDAMRI.github.io/tickup-charts/](https://BARDAMRI.github.io/tickup-charts/)**):
 
 ```tsx
 import { TickUpStage, ModeProvider } from 'tickup';
@@ -47,7 +47,7 @@ import type { ChartOptions, DeepRequired } from 'tickup';
 
 ## Live updates
 
-Prefer the ref API **`applyLiveData(updates, placement)`** with **`mergeByTime`**, **`append`**, etc. See **[`../../documentation/07-data-and-live-updates.md`](../../documentation/07-data-and-live-updates.md)**.
+Prefer the ref API **`applyLiveData(updates, placement)`** with **`mergeByTime`**, **`append`**, etc. See **[https://BARDAMRI.github.io/tickup-charts/](https://BARDAMRI.github.io/tickup-charts/)**.
 
 ## Visible time and price (ref API)
 
@@ -56,12 +56,12 @@ After pan/zoom, read the same windows the chart uses for mapping:
 - **`getVisibleRanges()`** → **`VisibleViewRanges`**: `time.start` / `time.end` (unix **seconds**), `time.startIndex` / `time.endIndex` in the sorted series, and `price.min` / `price.max` / `price.range` for the Y scale.
 - **`getCanvasSize()`** → main plot backing-store size + DPR.
 
-From a product shell, the ref may be **`null`** until the stage mounts — use optional chaining. Full detail and examples: **[`../../documentation/06-imperative-api.md`](../../documentation/06-imperative-api.md)**.
+From a product shell, the ref may be **`null`** until the stage mounts — use optional chaining. Full detail and examples: **[https://BARDAMRI.github.io/tickup-charts/](https://BARDAMRI.github.io/tickup-charts/)**.
 
 ## Further reading
 
-- **[Quick start](../../documentation/03-quick-start.md)**
-- **[Imperative API](../../documentation/06-imperative-api.md)**
-- **[Props & chart options](../../documentation/05-props-and-chart-options.md)**
+- **[Quick start](https://BARDAMRI.github.io/tickup-charts/)**
+- **[Imperative API](https://BARDAMRI.github.io/tickup-charts/)**
+- **[Props & chart options](https://BARDAMRI.github.io/tickup-charts/)**
 
 The legacy snippet that referenced **`ChartManager`** is removed — it never matched the shipped API.

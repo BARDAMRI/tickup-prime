@@ -1,9 +1,9 @@
-# tickup Prime - The High-Performance Pro Engine
+# TickUp Prime — Premium Financial Engine
 
 `@tickup/prime` is the premium rendering and product extension for TickUp Charts.
 It adds the neon visual profile, Prime-tier shell behavior, and pro-focused roadmap modules.
 
-## Requirements
+## Peer Dependency
 
 This package requires **tickup (Core)** as a peer dependency.
 
@@ -50,8 +50,10 @@ export function PrimeExample() {
 
 ## Documentation
 
-- Prime engine and roadmap: `documentation/15-prime-engine-and-pro-roadmap.md`
-- Custom neon theming guide: `documentation/16-custom-neon-themes.md`
+- Prime documentation hub: [https://BARDAMRI.github.io/tickup-charts/](https://BARDAMRI.github.io/tickup-charts/)
+- Prime engine and roadmap guide: [https://BARDAMRI.github.io/tickup-charts/](https://BARDAMRI.github.io/tickup-charts/)
+- Custom neon theming guide: [https://BARDAMRI.github.io/tickup-charts/](https://BARDAMRI.github.io/tickup-charts/)
+- Prime roadmap: `Roadmap.md`
 
 ## License
 

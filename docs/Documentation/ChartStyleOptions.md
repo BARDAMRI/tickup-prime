@@ -1,6 +1,6 @@
 # Chart options & styles (legacy page)
 
-> **Authoritative reference:** **[`../../documentation/05-props-and-chart-options.md`](../../documentation/05-props-and-chart-options.md)** and **[`../../documentation/12-overlays-and-indicators.md`](../../documentation/12-overlays-and-indicators.md)**.  
+> **Authoritative reference:** **[https://BARDAMRI.github.io/tickup-charts/](https://BARDAMRI.github.io/tickup-charts/)**.  
 > **Default values:** **`src/components/DefaultData.ts`** (`DEFAULT_GRAPH_OPTIONS`, style blocks).
 
 The tables below described an **older, flat** shape. The shipped type is **`ChartOptions`** with a **`base`** object and top-level **`axes`**:

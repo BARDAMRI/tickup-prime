@@ -2,6 +2,48 @@
 
 This guide shows how to tailor the Prime visual language while keeping engine behavior stable.
 
+## 0) Wire Prime engine into `TickUpHost`
+
+Always pass Prime through the host ref so runtime behavior and visuals stay aligned.
+
+```tsx
+import { useLayoutEffect, useMemo, useRef, useState } from 'react';
+import {
+  ChartTheme,
+  TickUpHost,
+  type Interval,
+  type TickUpHostHandle,
+} from 'tickup/full';
+import {
+  createTickUpPrimeEngine,
+  getTickUpPrimeThemePatch,
+} from '@tickup/prime';
+
+type Theme = ChartTheme.light | ChartTheme.dark;
+
+export function PrimeHostExample({ data }: { data: Interval[] }) {
+  const ref = useRef<TickUpHostHandle>(null);
+  const [theme, setTheme] = useState<Theme>(ChartTheme.dark);
+  const primeEngine = useMemo(() => createTickUpPrimeEngine(theme), [theme]);
+
+  useLayoutEffect(() => {
+    ref.current?.setEngine(primeEngine);
+  }, [primeEngine]);
+
+  return (
+    <TickUpHost
+      ref={ref}
+      intervalsArray={data}
+      themeVariant={theme}
+      onThemeVariantChange={setTheme}
+      chartOptions={getTickUpPrimeThemePatch(theme)}
+      showTopBar
+      showSettingsBar
+    />
+  );
+}
+```
+
 ## 1) Start from a Prime patch
 
 Use `getTickUpPrimeThemePatch(theme)` or `createTickUpPrimeEngine(theme)` as your baseline.

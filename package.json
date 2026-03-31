@@ -1,7 +1,7 @@
 {
   "name": "@tickup/prime",
   "version": "1.0.0",
-  "description": "TickUp Charts \u2014 MIT-licensed React financial charts (Canvas 2D OHLCV): Pulse, Flow, Command, Desk, and custom layouts via tickup + tickup/full.",
+  "description": "TickUp Prime premium financial engine for advanced themes, Prime-tier rendering, and pro-focused chart extensions.",
   "type": "module",
   "main": "./dist/tickup.cjs.js",
   "module": "./dist/tickup.es.js",
@@ -61,9 +61,6 @@
   },
   "bugs": {
     "url": "https://github.com/BARDAMRI/tickup-charts/issues"
-  },
-  "publishConfig": {
-    "access": "public"
   },
   "engines": {
     "node": ">=18.0.0"

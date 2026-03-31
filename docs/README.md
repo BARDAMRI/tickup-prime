@@ -14,4 +14,4 @@ This directory is **not** published in the **npm** tarball (see root **`package.
 | **[`Design_Guidelines/`](./Design_Guidelines/Design_Guidelines.md)** | UX notes |
 | **[`internal/`](./internal/README.md)** | **Collaborator-only** runbooks (e.g. Prime tier / engine) |
 
-**Integration truth:** [`../documentation/README.md`](../documentation/README.md) (also on npm as `documentation/`).
+**Integration truth:** [https://BARDAMRI.github.io/tickup-charts/](https://BARDAMRI.github.io/tickup-charts/) (also on npm as `documentation/`).

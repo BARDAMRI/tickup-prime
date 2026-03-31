@@ -28,4 +28,4 @@ The library on **`npm`** (`tickup` / `tickup/full`) already includes:
 - **WebGL** as default renderer (Canvas 2D remains the core story)  
 - **3D** charts  
 
-Track concrete work in **GitHub issues**; integration truth remains **[`../../documentation/`](../../documentation/README.md)**.
+Track concrete work in **GitHub issues**; integration truth remains **[https://BARDAMRI.github.io/tickup-charts/](https://BARDAMRI.github.io/tickup-charts/)**.

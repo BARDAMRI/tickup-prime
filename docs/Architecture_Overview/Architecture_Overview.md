@@ -33,4 +33,4 @@ High-level map of the **shipped** React application (aligned with `src/`).
 
 - **`docs/internal/`** — not published on npm; maintainer runbooks (e.g. Prime tier).
 
-For API detail, use **[`../../documentation/`](../../documentation/README.md)**.
+For API detail, use **[https://BARDAMRI.github.io/tickup-charts/](https://BARDAMRI.github.io/tickup-charts/)**.

@@ -469,7 +469,7 @@ export default function App() {
 
                 <div className="flex flex-wrap items-center justify-end gap-3">
                     <a
-                        href="https://github.com/BARDAMRI/tickup-charts/blob/main/documentation/README.md"
+                        href="https://BARDAMRI.github.io/tickup-charts/"
                         target="_blank"
                         rel="noreferrer"
                         className={`rounded-full border px-4 py-2 text-xs font-semibold uppercase tracking-wider transition-colors ${
@@ -477,7 +477,7 @@ export default function App() {
                                 ? 'border-white/10 bg-black/30 text-slate-300 hover:border-[#3EC5FF]/45 hover:text-white'
                                 : 'border-slate-200 bg-white/70 text-slate-700 hover:border-[#3EC5FF]/60 hover:text-slate-900'
                         }`}
-                        title="Open documentation (GitHub)"
+                        title="Open documentation site"
                     >
                         Docs
                     </a>

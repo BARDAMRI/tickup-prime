@@ -1,7 +1,7 @@
 {
   "name": "@tickup/prime",
   "version": "1.0.10",
-  "description": "TickUp Prime premium financial engine for advanced themes, Prime-tier rendering, and pro-focused chart extensions.",
+  "description": "TickUp Prime premium financial engine for TickUp Charts with advanced rendering, licensing, and pro-focused chart extensions.",
   "type": "module",
   "private": true,
   "main": "./dist/tickup.cjs.js",
@@ -46,7 +46,7 @@
     "trading",
     "premium"
   ],
-  "author": "Bar Damri",
+  "author": "BARDAMRI",
   "license": "UNLICENSED",
   "homepage": "https://github.com/BARDAMRI/tickup-charts",
   "repository": {
@@ -62,7 +62,7 @@
   "peerDependencies": {
     "react": ">=18",
     "styled-components": ">=6",
-    "tickup": "^1.0.25"
+    "tickup": "^1.0.31"
   },
   "devDependencies": {
     "@types/jest": "^29.5.14",

@@ -106,6 +106,23 @@ function tickupWatermarkDrawOpts(
     };
 }
 
+function drawWatermark(
+    ctx: CanvasRenderingContext2D,
+    width: number,
+    height: number,
+): void {
+    ctx.save();
+    ctx.translate(width / 2, height / 2);
+    ctx.rotate(-Math.PI / 4);
+    ctx.globalAlpha = 0.14;
+    ctx.fillStyle = '#f3f4f6';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.font = `700 ${Math.max(18, Math.floor(Math.min(width, height) * 0.055))}px system-ui, sans-serif`;
+    ctx.fillText('EVALUATION VERSION - TICKUP PRIME', 0, 0);
+    ctx.restore();
+}
+
 interface ChartCanvasProps {
     intervalsArray: Interval[];
     drawings: IDrawingShape[];
@@ -126,6 +143,8 @@ interface ChartCanvasProps {
     showBrandWatermark?: boolean;
     /** Matches chart `base.theme` for choosing light / dark / grey mark artwork. */
     brandTheme?: ChartTheme;
+    /** Prime license evaluation overlay on top of chart layers. */
+    showEvaluationWatermark?: boolean;
 }
 
 export interface ChartCanvasHandle {
@@ -156,6 +175,7 @@ const ChartCanvasInner: React.ForwardRefRenderFunction<ChartCanvasHandle, ChartC
         windowSpread,
         showBrandWatermark = true,
         brandTheme = ChartTheme.light,
+        showEvaluationWatermark = false,
     },
     ref
 ) => {
@@ -648,6 +668,13 @@ const ChartCanvasInner: React.ForwardRefRenderFunction<ChartCanvasHandle, ChartC
         // 4. Hover & Interaction Canvas
         // --------------------------------------------------
         drawCreatedShapes(dims);
+        if (showEvaluationWatermark && hoverCanvasRef.current) {
+            const ctx = hoverCanvasRef.current.getContext('2d');
+            if (ctx) {
+                ctx.setTransform(dims.dpr, 0, 0, dims.dpr, 0, 0);
+                drawWatermark(ctx, dims.cssWidth, dims.cssHeight);
+            }
+        }
 
     }, [
         isPanning,
@@ -657,6 +684,7 @@ const ChartCanvasInner: React.ForwardRefRenderFunction<ChartCanvasHandle, ChartC
         drawHistogramImage,
         drawShapes,
         drawCreatedShapes,
+        showEvaluationWatermark,
     ]);
 
     const scheduleDraw = useCallback(() => {

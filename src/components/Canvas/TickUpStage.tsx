@@ -180,6 +180,7 @@ export interface TickUpStageProps {
     /** Sync with app chart theme for fullscreen modals */
     themeVariant?: ChartTheme;
     showBrandWatermark?: boolean;
+    showEvaluationWatermark?: boolean;
     /** Search/validation flow for interval changes (e.g. swap data feed). */
     onIntervalSearch?: (tf: string) => void | boolean | Promise<void | boolean>;
 }
@@ -270,6 +271,7 @@ export const TickUpStage = forwardRef<TickUpStageHandle, TickUpStageProps>(({
     onIntervalSearch,
     themeVariant = ChartTheme.dark,
     showBrandWatermark = true,
+    showEvaluationWatermark = false,
 }, ref) => {
     const { setMode } = useMode();
     const containerRef = useRef<HTMLDivElement | null>(null);
@@ -1066,6 +1068,7 @@ export const TickUpStage = forwardRef<TickUpStageHandle, TickUpStageProps>(({
                                 windowSpread={windowSpread}
                                 showBrandWatermark={showBrandWatermark}
                                 brandTheme={chartOptions.base.theme}
+                                showEvaluationWatermark={showEvaluationWatermark}
                             />
                         )}
                     </CanvasContainer>

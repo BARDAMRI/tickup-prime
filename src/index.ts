@@ -78,6 +78,7 @@ export {
     getTickUpPrimeThemePatch,
 } from './engines/prime/TickUpPrime';
 export {TICKUP_PRIME_PRIMARY, TICKUP_PRIME_SECONDARY, TICKUP_PRIME_TEXT} from './engines/prime/TickUpPrime';
+export {validateLicense} from './licensing/validateLicense';
 export {
     timeToX,
     xToTime,

@@ -16,6 +16,7 @@ import {
     TimeDetailLevel,
     createTickUpPrimeEngine,
     getTickUpPrimeThemePatch,
+    validateLicense,
 } from 'tickup/full';
 import {
     AreaChart,
@@ -29,6 +30,8 @@ import {
     Moon,
     MousePointer2,
     Pencil,
+    ShieldCheck,
+    LockKeyhole,
     Sun,
     TrendingUp,
     Zap,
@@ -45,6 +48,7 @@ const DOCS_HUB_URL =
     'https://BARDAMRI.github.io/tickup-charts/';
 /** Prime docs home. */
 const DOCS_TREE_URL = 'https://BARDAMRI.github.io/tickup-charts/';
+const DEMO_MASTER_LICENSE_KEY = 'TICKUP-PRO-2026-BETA';
 
 type ThemePreference = 'system' | ChartTheme;
 
@@ -262,6 +266,9 @@ export default function TickUpDemo({ onOpenCompare, onIntervalFeedRequest, onRan
     const [toast, setToast] = useState<string | null>(null);
     const [activeTool, setActiveTool] = useState<'cursor' | 'line' | 'ray' | 'fib' | 'pencil'>('cursor');
     const [liveTrading, setLiveTrading] = useState(true);
+    const [licenseKey, setLicenseKey] = useState('');
+    const [licenseUserIdentifier, setLicenseUserIdentifier] = useState('');
+    const [licenseValid, setLicenseValid] = useState(false);
     const toastTimerRef = useRef<number | null>(null);
 
     const showToastNow = useCallback((message: string, timeoutMs = 4200) => {
@@ -280,6 +287,34 @@ export default function TickUpDemo({ onOpenCompare, onIntervalFeedRequest, onRan
             window.clearTimeout(toastTimerRef.current);
         }
     }, []);
+
+    useEffect(() => {
+        if (typeof window === 'undefined') return;
+        const storedKey = window.localStorage.getItem('tickup.prime.licenseKey') ?? '';
+        const storedUser = window.localStorage.getItem('tickup.prime.licenseUser') ?? '';
+        setLicenseKey(storedKey);
+        setLicenseUserIdentifier(storedUser);
+    }, []);
+
+    useEffect(() => {
+        if (typeof window === 'undefined') return;
+        window.localStorage.setItem('tickup.prime.licenseKey', licenseKey);
+        window.localStorage.setItem('tickup.prime.licenseUser', licenseUserIdentifier);
+    }, [licenseKey, licenseUserIdentifier]);
+
+    useEffect(() => {
+        let cancelled = false;
+        validateLicense(licenseKey, licenseUserIdentifier)
+            .then((ok) => {
+                if (!cancelled) setLicenseValid(ok);
+            })
+            .catch(() => {
+                if (!cancelled) setLicenseValid(false);
+            });
+        return () => {
+            cancelled = true;
+        };
+    }, [licenseKey, licenseUserIdentifier]);
 
     const normalizeIntervalKey = useCallback((rawTf: string): DemoIntervalKey | null => {
         const clean = rawTf.trim();
@@ -1035,6 +1070,8 @@ export default function TickUpDemo({ onOpenCompare, onIntervalFeedRequest, onRan
                                         }
                                         void requestRangeSwitch(mapped, 'chart');
                                     }}
+                                    licenseKey={licenseKey}
+                                    licenseUserIdentifier={licenseUserIdentifier}
                                 />
                                 {/* Optional decoration (brand assets removed for repo portability). */}
                             </div>
@@ -1122,6 +1159,73 @@ export default function TickUpDemo({ onOpenCompare, onIntervalFeedRequest, onRan
                                     />
                                 </button>
                             </div>
+                            <label
+                                className={`mb-4 block text-xs ${isPageDark ? 'text-slate-400' : 'text-slate-600'}`}
+                            >
+                                License Settings
+                                <div className="mt-1 space-y-2">
+                                    <div className={`${isPageDark ? 'text-slate-500' : 'text-slate-500'} text-[11px] uppercase tracking-wider`}>
+                                        License Key
+                                    </div>
+                                    <input
+                                        type="text"
+                                        value={licenseKey}
+                                        onChange={(e) => setLicenseKey(e.target.value)}
+                                        placeholder="TKUP-PRO-XXXX..."
+                                        className={`w-full rounded-lg border px-3 py-2 font-mono text-sm outline-none ring-[#3EC5FF]/40 focus:ring-2 ${
+                                            isPageDark
+                                                ? 'border-white/10 bg-black/30 text-white'
+                                                : 'border-slate-300 bg-white text-slate-900'
+                                        }`}
+                                    />
+                                    <div className={`${isPageDark ? 'text-slate-500' : 'text-slate-500'} text-[11px]`}>
+                                        Paste your Prime license key from TickUp Vault.
+                                    </div>
+                                    <div className={`${isPageDark ? 'text-slate-500' : 'text-slate-500'} text-[11px] uppercase tracking-wider`}>
+                                        User Identifier
+                                    </div>
+                                    <input
+                                        type="text"
+                                        value={licenseUserIdentifier}
+                                        onChange={(e) => setLicenseUserIdentifier(e.target.value)}
+                                        placeholder="your@email.com"
+                                        className={`w-full rounded-lg border px-3 py-2 text-sm outline-none ring-[#3EC5FF]/40 focus:ring-2 ${
+                                            isPageDark
+                                                ? 'border-white/10 bg-black/30 text-white'
+                                                : 'border-slate-300 bg-white text-slate-900'
+                                        }`}
+                                    />
+                                    <div className={`${isPageDark ? 'text-slate-500' : 'text-slate-500'} text-[11px]`}>
+                                        Must match the user identifier used during key generation.
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setLicenseKey(DEMO_MASTER_LICENSE_KEY);
+                                            showToastNow('Demo key applied. Prime should unlock immediately.');
+                                        }}
+                                        className={`w-full rounded-lg border px-3 py-2 text-[11px] font-semibold uppercase tracking-wider transition-colors ${
+                                            isPageDark
+                                                ? 'border-[#5A48DE]/55 bg-[#5A48DE]/20 text-violet-200 hover:bg-[#5A48DE]/30'
+                                                : 'border-[#5A48DE]/45 bg-[#5A48DE]/10 text-violet-700 hover:bg-[#5A48DE]/15'
+                                        }`}
+                                    >
+                                        Test with Demo Key
+                                    </button>
+                                    <div>
+                                        <span
+                                            className={`inline-flex items-center rounded-full border px-2 py-1 text-[10px] font-semibold uppercase tracking-wider ${
+                                                licenseValid
+                                                    ? 'border-emerald-500/40 bg-emerald-500/15 text-emerald-300'
+                                                    : 'border-red-500/40 bg-red-500/15 text-red-300'
+                                            }`}
+                                        >
+                                            {licenseValid ? <ShieldCheck className="mr-1 h-3.5 w-3.5" /> : <LockKeyhole className="mr-1 h-3.5 w-3.5" />}
+                                            {licenseValid ? 'PRO ACTIVE' : 'EVALUATION MODE'}
+                                        </span>
+                                    </div>
+                                </div>
+                            </label>
                             <label
                                 className={`mb-4 block text-xs ${isPageDark ? 'text-slate-400' : 'text-slate-600'}`}
                             >

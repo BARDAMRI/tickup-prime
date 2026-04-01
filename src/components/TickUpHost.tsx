@@ -12,6 +12,7 @@ import {
     ChartType,
     CurrencyDisplay,
     NumberNotation,
+    TickUpRenderEngine,
     TimeDetailLevel,
 } from '../types/chartOptions';
 import {StrokeLineStyle} from '../types/overlay';
@@ -36,6 +37,7 @@ import type {IDrawingShape} from './Drawing/IDrawingShape';
 import {TickUpProductId} from '../types/tickupProducts';
 import type {TickUpChartEngine} from '../engines/TickUpEngine';
 import {AlertModal} from './Common/AlertModal';
+import {validateLicense} from '../licensing/validateLicense';
 
 /** Stable reference when `chartOptions` prop is omitted so sync effect is not fooled by a fresh `{}` each render. */
 const EMPTY_CHART_OPTIONS: DeepPartial<ChartOptions> = {};
@@ -148,8 +150,10 @@ export type TickUpHostProps = {
      * Forced on for `productId="desk"`. Default true. Set false to disable branding.
      */
     showAttribution?: boolean;
-    /** For `productId="prime"`: non-empty value hides the eval strip. */
+    /** Prime license key (format: TKUP-{PLAN}-{SIGNATURE}). */
     licenseKey?: string | null;
+    /** User identifier used for HMAC validation payload (usually account email). */
+    licenseUserIdentifier?: string | null;
     /**
      * Shell **light** / **dark** (toolbar, settings modal chrome, `GlobalStyle` page background).
      * When set, the host is **controlled**: update this prop when {@link onThemeVariantChange} fires
@@ -212,6 +216,7 @@ export const TickUpHost = forwardRef<TickUpHostHandle, TickUpHostProps>((props, 
         onSymbolSearch,
         productId,
         licenseKey,
+        licenseUserIdentifier,
         showAttribution = true,
         themeVariant: themeVariantProp,
         defaultThemeVariant = ChartTheme.light,
@@ -657,7 +662,42 @@ export const TickUpHost = forwardRef<TickUpHostHandle, TickUpHostProps>((props, 
         } as DeepPartial<ChartOptions>);
     }, [finalStyleOptions, themeVariant]);
 
-    const primeTierEval = productId === TickUpProductId.prime && !licenseKey;
+    const [isLicenseValid, setIsLicenseValid] = useState(false);
+    useEffect(() => {
+        let cancelled = false;
+        validateLicense(licenseKey, licenseUserIdentifier)
+            .then((ok) => {
+                if (!cancelled) {
+                    setIsLicenseValid(ok);
+                }
+            })
+            .catch(() => {
+                if (!cancelled) {
+                    setIsLicenseValid(false);
+                }
+            });
+        return () => {
+            cancelled = true;
+        };
+    }, [licenseKey, licenseUserIdentifier]);
+
+    const primeTierEval = productId === TickUpProductId.prime && !isLicenseValid;
+    const primeEngineEval = chartOptionsForStage.base.engine === TickUpRenderEngine.prime && !isLicenseValid;
+    const hasWarnedPrimeEvalRef = useRef(false);
+
+    useEffect(() => {
+        if (!primeEngineEval) {
+            hasWarnedPrimeEvalRef.current = false;
+            return;
+        }
+        if (hasWarnedPrimeEvalRef.current) {
+            return;
+        }
+        hasWarnedPrimeEvalRef.current = true;
+        console.warn(
+            'Running TickUp Prime in Evaluation Mode. To remove the watermark, please provide a valid license key. https://github.com/BARDAMRI/tickup-charts',
+        );
+    }, [primeEngineEval]);
 
     return (
         <ModeProvider>
@@ -724,6 +764,7 @@ export const TickUpHost = forwardRef<TickUpHostHandle, TickUpHostProps>((props, 
                         initialRange={initialRange}
                         themeVariant={themeVariant}
                         showBrandWatermark={attributionOn}
+                        showEvaluationWatermark={primeEngineEval}
                     />
 
                     <SettingsModal

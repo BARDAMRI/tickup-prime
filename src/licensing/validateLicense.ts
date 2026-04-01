@@ -1,5 +1,5 @@
 const PRIME_MASTER_KEY = 'TICKUP-PRO-2026-BETA';
-const TICKUP_SECRET_KEY = 'your_secret_pepper_here';
+const TICKUP_SECRET_KEY = 'BAr-TIckUp-S3cr3t-2026-Unique';
 
 function toBase64Url(bytes: Uint8Array): string {
     let base64: string;

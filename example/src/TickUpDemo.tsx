@@ -22,6 +22,8 @@ import {
     AreaChart,
     BookOpen,
     CandlestickChart,
+    ChevronDown,
+    Clock3,
     Eraser,
     Flame,
     GitBranch,
@@ -247,7 +249,7 @@ function rangeSecondsFor(r: DemoRangeKey): number {
 export default function TickUpDemo({ onOpenCompare, onIntervalFeedRequest, onRangeFeedRequest }: TickUpDemoProps) {
     const chartRef = useRef<TickUpHostHandle | null>(null);
     /** Follow OS vs forced appearance; resolved into `shellTheme` below. */
-    const [themePreference, setThemePreference] = useState<ThemePreference>('system');
+    const [themePreference, setThemePreference] = useState<ThemePreference>(ChartTheme.dark);
     const systemPrefersDark = usePrefersColorSchemeDark();
     const shellTheme = useMemo<ChartTheme>(() => {
         if (themePreference === 'system') {
@@ -258,7 +260,7 @@ export default function TickUpDemo({ onOpenCompare, onIntervalFeedRequest, onRan
     const [timeframe, setTimeframe] = useState<DemoIntervalKey>('5m');
     const [range, setRange] = useState<DemoRangeKey>('7d');
     const [chartKind, setChartKind] = useState<ChartKind>('candle');
-    const [primeMode, setPrimeMode] = useState(false);
+    const [primeMode, setPrimeMode] = useState(true);
     const [showTickPreviews, setShowTickPreviews] = useState(true);
     const [symbol, setSymbol] = useState<DemoSymbol>('TICKUP');
     const [symbolDraft, setSymbolDraft] = useState<string>('TICKUP');
@@ -267,9 +269,12 @@ export default function TickUpDemo({ onOpenCompare, onIntervalFeedRequest, onRan
     const [activeTool, setActiveTool] = useState<'cursor' | 'line' | 'ray' | 'fib' | 'pencil'>('cursor');
     const [liveTrading, setLiveTrading] = useState(true);
     const [licenseKey, setLicenseKey] = useState('');
-    const [licenseUserIdentifier, setLicenseUserIdentifier] = useState('');
+    const [userEmail, setUserEmail] = useState('');
     const [licenseValid, setLicenseValid] = useState(false);
+    const [isIntervalMenuOpen, setIsIntervalMenuOpen] = useState(false);
     const toastTimerRef = useRef<number | null>(null);
+    const prevLicenseValidRef = useRef(false);
+    const intervalMenuRef = useRef<HTMLDivElement | null>(null);
 
     const showToastNow = useCallback((message: string, timeoutMs = 4200) => {
         setToast(message);
@@ -293,18 +298,18 @@ export default function TickUpDemo({ onOpenCompare, onIntervalFeedRequest, onRan
         const storedKey = window.localStorage.getItem('tickup.prime.licenseKey') ?? '';
         const storedUser = window.localStorage.getItem('tickup.prime.licenseUser') ?? '';
         setLicenseKey(storedKey);
-        setLicenseUserIdentifier(storedUser);
+        setUserEmail(storedUser);
     }, []);
 
     useEffect(() => {
         if (typeof window === 'undefined') return;
         window.localStorage.setItem('tickup.prime.licenseKey', licenseKey);
-        window.localStorage.setItem('tickup.prime.licenseUser', licenseUserIdentifier);
-    }, [licenseKey, licenseUserIdentifier]);
+        window.localStorage.setItem('tickup.prime.licenseUser', userEmail);
+    }, [licenseKey, userEmail]);
 
     useEffect(() => {
         let cancelled = false;
-        validateLicense(licenseKey, licenseUserIdentifier)
+        validateLicense(licenseKey, userEmail)
             .then((ok) => {
                 if (!cancelled) setLicenseValid(ok);
             })
@@ -314,7 +319,38 @@ export default function TickUpDemo({ onOpenCompare, onIntervalFeedRequest, onRan
         return () => {
             cancelled = true;
         };
-    }, [licenseKey, licenseUserIdentifier]);
+    }, [licenseKey, userEmail]);
+
+    useEffect(() => {
+        if (licenseValid && !prevLicenseValidRef.current) {
+            showToastNow('Pro Features Unlocked.', 2800);
+        }
+        prevLicenseValidRef.current = licenseValid;
+    }, [licenseValid, showToastNow]);
+
+    useEffect(() => {
+        const onPointerDown = (event: MouseEvent) => {
+            if (!intervalMenuRef.current?.contains(event.target as Node)) {
+                setIsIntervalMenuOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', onPointerDown);
+        return () => document.removeEventListener('mousedown', onPointerDown);
+    }, []);
+
+    // Keep global dark-mode classes synchronized with the React/chart theme from first paint.
+    useEffect(() => {
+        if (typeof document === 'undefined') return;
+        const root = document.documentElement;
+        const body = document.body;
+        if (shellTheme === ChartTheme.dark) {
+            root.classList.add('dark');
+            body.classList.add('dark');
+        } else {
+            root.classList.remove('dark');
+            body.classList.remove('dark');
+        }
+    }, [shellTheme]);
 
     const normalizeIntervalKey = useCallback((rawTf: string): DemoIntervalKey | null => {
         const clean = rawTf.trim();
@@ -962,7 +998,7 @@ export default function TickUpDemo({ onOpenCompare, onIntervalFeedRequest, onRan
             </section>
 
             <div
-                className={`flex flex-col border-t lg:min-h-[min(88vh,56rem)] lg:flex-row ${isPageDark ? 'border-white/10' : 'border-slate-200'
+                className={`flex flex-col border-t lg:h-[min(88vh,56rem)] lg:min-h-[36rem] lg:flex-row lg:overflow-hidden ${isPageDark ? 'border-white/10' : 'border-slate-200'
                     }`}
             >
                 <aside
@@ -1005,39 +1041,73 @@ export default function TickUpDemo({ onOpenCompare, onIntervalFeedRequest, onRan
                                     key={key}
                                     type="button"
                                     onClick={() => setChartKind(key)}
-                                    className={`flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-[11px] font-semibold capitalize md:px-3 md:text-xs ${chartKind === key
+                                    className={`flex items-center gap-1.5 rounded-md px-4 py-1.5 text-[11px] font-semibold capitalize md:text-xs ${chartKind === key
                                         ? 'bg-[#3EC5FF] text-black'
-                                        : 'text-slate-400 hover:bg-white/10 hover:text-white'
+                                        : 'text-slate-100 hover:bg-white/10 hover:text-white'
                                         }`}
                                 >
                                     <Icon className="h-3.5 w-3.5 opacity-80" />
                                     {label}
+                                    <ChevronDown className="h-3.5 w-3.5 opacity-70" />
                                 </button>
                             ))}
                         </div>
-                        <nav className="flex flex-wrap gap-1" aria-label="Timeframe">
-                            {demoMarketData.intervals.map((tf) => (
-                                <button
-                                    key={tf}
-                                    type="button"
-                                    onClick={() => {
-                                        void requestIntervalSwitch(tf, 'ui');
-                                    }}
-                                    className={`rounded-md px-2 py-1 font-mono text-[10px] font-medium md:text-xs ${timeframe === tf
-                                        ? 'bg-[#5A48DE]/40 text-violet-200 ring-1 ring-[#3EC5FF]/35'
-                                        : 'text-slate-500 hover:bg-white/10 hover:text-slate-300'
-                                        }`}
+                        <div className="relative" ref={intervalMenuRef}>
+                            <button
+                                type="button"
+                                onClick={() => setIsIntervalMenuOpen((v) => !v)}
+                                className={`inline-flex items-center justify-center gap-2 rounded-lg border px-4 py-1.5 font-mono text-xs transition-colors ${
+                                    isPageDark
+                                        ? 'border-white/20 bg-white/5 text-white hover:bg-white/10'
+                                        : 'border-slate-300 bg-white text-slate-800 hover:bg-slate-50'
+                                }`}
+                                aria-haspopup="menu"
+                                aria-expanded={isIntervalMenuOpen}
+                                aria-label="Select interval"
+                            >
+                                <Clock3 className="h-3.5 w-3.5 text-[#3EC5FF]" />
+                                <span className="min-w-[2.25rem] text-center font-semibold">{timeframe}</span>
+                                <ChevronDown className={`h-3.5 w-3.5 transition-transform ${isIntervalMenuOpen ? 'rotate-180' : ''}`} />
+                            </button>
+                            {isIntervalMenuOpen ? (
+                                <div
+                                    className={`absolute right-0 top-full z-50 mt-2 w-28 rounded-xl border p-1 ${
+                                        isPageDark
+                                            ? 'border-white/10 bg-slate-900/70 backdrop-blur-md'
+                                            : 'border-slate-200 bg-white/95 backdrop-blur-md'
+                                    }`}
+                                    role="menu"
+                                    aria-label="Interval options"
                                 >
-                                    {tf}
-                                </button>
-                            ))}
-                        </nav>
+                                    {demoMarketData.intervals.map((tf) => (
+                                        <button
+                                            key={tf}
+                                            type="button"
+                                            onClick={() => {
+                                                setIsIntervalMenuOpen(false);
+                                                void requestIntervalSwitch(tf, 'ui');
+                                            }}
+                                            className={`w-full rounded-md px-3 py-1.5 text-center font-mono text-xs transition-colors ${
+                                                timeframe === tf
+                                                    ? 'bg-[#5A48DE]/40 font-semibold text-violet-200 ring-1 ring-[#3EC5FF]/35'
+                                                    : isPageDark
+                                                        ? 'text-slate-300 hover:bg-white/10'
+                                                        : 'text-slate-700 hover:bg-slate-100'
+                                            }`}
+                                            role="menuitem"
+                                        >
+                                            {tf}
+                                        </button>
+                                    ))}
+                                </div>
+                            ) : null}
+                        </div>
                     </div>
 
-                    <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
-                        <main className="relative min-h-[min(70vh,40rem)] w-full min-w-0 flex-1 p-2 md:min-h-[min(75vh,44rem)] md:p-3">
+                    <div className="flex min-h-0 flex-1 flex-col lg:flex-row lg:overflow-hidden">
+                        <main className="relative min-h-[22rem] w-full min-w-0 flex-1 p-2 md:p-3 lg:h-full lg:min-h-0">
                             <div
-                                className={`relative h-[min(75vh,48rem)] min-h-[22rem] w-full overflow-hidden rounded-xl border ${isPageDark
+                                className={`relative h-[58vh] min-h-[22rem] max-h-[42rem] w-full overflow-hidden rounded-xl border lg:h-full lg:max-h-none ${isPageDark
                                     ? 'border-white/10 bg-[#06080d]'
                                     : 'border-slate-200 bg-white'
                                     }`}
@@ -1071,13 +1141,19 @@ export default function TickUpDemo({ onOpenCompare, onIntervalFeedRequest, onRan
                                         void requestRangeSwitch(mapped, 'chart');
                                     }}
                                     licenseKey={licenseKey}
-                                    licenseUserIdentifier={licenseUserIdentifier}
+                                    licenseUserIdentifier={userEmail}
+                                    licenseValidationOverride={licenseValid}
                                 />
                                 {/* Optional decoration (brand assets removed for repo portability). */}
                             </div>
 
-                            <div className="pointer-events-none absolute bottom-5 left-4 z-20 md:bottom-6 md:left-5">
-                                <ChartHud isDark={isPageDark} primeMode={primeMode} barCount={displayIntervals.length} />
+                            <div className="pointer-events-none absolute right-4 top-4 z-[9999] md:right-5">
+                                <ChartHud
+                                    isDark={isPageDark}
+                                    primeMode={primeMode}
+                                    barCount={displayIntervals.length}
+                                    licenseValid={licenseValid ?? false}
+                                />
                             </div>
 
                             {showTickPreviews && (
@@ -1137,7 +1213,7 @@ export default function TickUpDemo({ onOpenCompare, onIntervalFeedRequest, onRan
                         </main>
 
                         <aside
-                            className={`${panelGlass} w-full border-t p-4 lg:w-[19rem] lg:border-l lg:border-t-0 md:p-6 ${isPageDark ? 'border-white/10' : 'border-slate-200'
+                            className={`${panelGlass} w-full border-t p-4 lg:h-full lg:w-[19rem] lg:overflow-y-auto lg:border-l lg:border-t-0 md:p-6 ${isPageDark ? 'border-white/10' : 'border-slate-200'
                                 }`}
                         >
                             <div className="mb-6 flex items-center justify-between">
@@ -1159,12 +1235,15 @@ export default function TickUpDemo({ onOpenCompare, onIntervalFeedRequest, onRan
                                     />
                                 </button>
                             </div>
-                            <label
-                                className={`mb-4 block text-xs ${isPageDark ? 'text-slate-400' : 'text-slate-600'}`}
-                            >
-                                License Settings
-                                <div className="mt-1 space-y-2">
-                                    <div className={`${isPageDark ? 'text-slate-500' : 'text-slate-500'} text-[11px] uppercase tracking-wider`}>
+                            <div className={`mb-4 rounded-xl border px-3 py-3 ${isPageDark ? 'border-[#3EC5FF]/20 bg-[#0c1220]/55' : 'border-[#3EC5FF]/25 bg-[#f0f9ff]'}`}>
+                                <div className={`mb-2 text-xs font-semibold uppercase tracking-wider ${isPageDark ? 'text-slate-300' : 'text-slate-700'}`}>
+                                    Pro Settings
+                                </div>
+                                <div className={`${isPageDark ? 'text-slate-400' : 'text-slate-600'} mb-3 text-[11px]`}>
+                                    Enter your lock-and-key pair to unlock Prime and remove evaluation watermarking.
+                                </div>
+                                <div className="space-y-2">
+                                    <div className={`${isPageDark ? 'text-slate-300' : 'text-slate-500'} text-[11px] uppercase tracking-wider`}>
                                         License Key
                                     </div>
                                     <input
@@ -1178,24 +1257,24 @@ export default function TickUpDemo({ onOpenCompare, onIntervalFeedRequest, onRan
                                                 : 'border-slate-300 bg-white text-slate-900'
                                         }`}
                                     />
-                                    <div className={`${isPageDark ? 'text-slate-500' : 'text-slate-500'} text-[11px]`}>
+                                    <div className={`${isPageDark ? 'text-slate-300' : 'text-slate-500'} text-[11px]`}>
                                         Paste your Prime license key from TickUp Vault.
                                     </div>
-                                    <div className={`${isPageDark ? 'text-slate-500' : 'text-slate-500'} text-[11px] uppercase tracking-wider`}>
+                                    <div className={`${isPageDark ? 'text-slate-300' : 'text-slate-500'} text-[11px] uppercase tracking-wider`}>
                                         User Identifier
                                     </div>
                                     <input
                                         type="text"
-                                        value={licenseUserIdentifier}
-                                        onChange={(e) => setLicenseUserIdentifier(e.target.value)}
-                                        placeholder="your@email.com"
+                                        value={userEmail}
+                                        onChange={(e) => setUserEmail(e.target.value)}
+                                        placeholder="bar@tickup.io"
                                         className={`w-full rounded-lg border px-3 py-2 text-sm outline-none ring-[#3EC5FF]/40 focus:ring-2 ${
                                             isPageDark
                                                 ? 'border-white/10 bg-black/30 text-white'
                                                 : 'border-slate-300 bg-white text-slate-900'
                                         }`}
                                     />
-                                    <div className={`${isPageDark ? 'text-slate-500' : 'text-slate-500'} text-[11px]`}>
+                                    <div className={`${isPageDark ? 'text-slate-300' : 'text-slate-500'} text-[11px]`}>
                                         Must match the user identifier used during key generation.
                                     </div>
                                     <button
@@ -1214,10 +1293,10 @@ export default function TickUpDemo({ onOpenCompare, onIntervalFeedRequest, onRan
                                     </button>
                                     <div>
                                         <span
-                                            className={`inline-flex items-center rounded-full border px-2 py-1 text-[10px] font-semibold uppercase tracking-wider ${
+                                            className={`inline-flex items-center rounded-full border px-2 py-1 text-[10px] font-semibold uppercase tracking-wider transition-all ${
                                                 licenseValid
-                                                    ? 'border-emerald-500/40 bg-emerald-500/15 text-emerald-300'
-                                                    : 'border-red-500/40 bg-red-500/15 text-red-300'
+                                                    ? 'animate-pulse border-emerald-400/60 bg-emerald-500/20 text-emerald-200 shadow-[0_0_20px_rgba(16,185,129,0.35)]'
+                                                    : 'border-red-400/60 bg-red-500/20 text-red-200'
                                             }`}
                                         >
                                             {licenseValid ? <ShieldCheck className="mr-1 h-3.5 w-3.5" /> : <LockKeyhole className="mr-1 h-3.5 w-3.5" />}
@@ -1225,7 +1304,7 @@ export default function TickUpDemo({ onOpenCompare, onIntervalFeedRequest, onRan
                                         </span>
                                     </div>
                                 </div>
-                            </label>
+                            </div>
                             <label
                                 className={`mb-4 block text-xs ${isPageDark ? 'text-slate-400' : 'text-slate-600'}`}
                             >
@@ -1419,7 +1498,17 @@ export default function TickUpDemo({ onOpenCompare, onIntervalFeedRequest, onRan
 }
 
 /** HUD updates FPS in isolation so live OHLC ticks do not re-render this counter via the parent. */
-function ChartHud({ isDark, primeMode, barCount }: { isDark: boolean; primeMode: boolean; barCount: number }) {
+function ChartHud({
+    isDark,
+    primeMode,
+    barCount,
+    licenseValid,
+}: {
+    isDark: boolean;
+    primeMode: boolean;
+    barCount: number;
+    licenseValid: boolean;
+}) {
     const [fps, setFps] = useState(60);
     useEffect(() => {
         let frames = 0;
@@ -1442,7 +1531,7 @@ function ChartHud({ isDark, primeMode, barCount }: { isDark: boolean; primeMode:
     return (
         <div
             className={`pointer-events-auto rounded-xl border px-3 py-2 font-mono text-[11px] leading-relaxed md:text-xs ${isDark
-                ? 'glass-panel border-white/10 text-[#E7EBFF]'
+                ? 'bg-slate-900/40 backdrop-blur-md border-white/10 text-[#E7EBFF]'
                 : 'glass-panel-light border-slate-200 text-slate-800'
                 }`}
         >
@@ -1458,6 +1547,23 @@ function ChartHud({ isDark, primeMode, barCount }: { isDark: boolean; primeMode:
                 <span className="text-slate-500">Bars </span>
                 <span className={isDark ? 'text-emerald-300' : 'text-emerald-700'}>
                     {barCount.toLocaleString()}
+                </span>
+            </div>
+            <div className="flex items-center gap-1.5">
+                <span className="text-slate-500">License </span>
+                <span
+                    className={`inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 transition-colors duration-300 ${
+                        licenseValid
+                            ? 'bg-emerald-500/20 text-emerald-100 shadow-[0_0_16px_rgba(16,185,129,0.38)]'
+                            : 'bg-red-500/20 text-red-100'
+                    }`}
+                >
+                    {licenseValid ? (
+                        <ShieldCheck className="h-3 w-3 text-emerald-400 transition-colors duration-300" />
+                    ) : (
+                        <LockKeyhole className="h-3 w-3 text-red-500 drop-shadow-[0_0_6px_rgba(239,68,68,0.9)] transition-colors duration-300" />
+                    )}
+                    {licenseValid ? 'Unlocked' : 'Locked'}
                 </span>
             </div>
         </div>

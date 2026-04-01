@@ -155,6 +155,11 @@ export type TickUpHostProps = {
     /** User identifier used for HMAC validation payload (usually account email). */
     licenseUserIdentifier?: string | null;
     /**
+     * Optional external validation result from host app UI.
+     * When provided, this overrides internal async validation for watermark gating.
+     */
+    licenseValidationOverride?: boolean;
+    /**
      * Shell **light** / **dark** (toolbar, settings modal chrome, `GlobalStyle` page background).
      * When set, the host is **controlled**: update this prop when {@link onThemeVariantChange} fires
      * (e.g. from the settings toolbar sun/moon control).
@@ -217,9 +222,10 @@ export const TickUpHost = forwardRef<TickUpHostHandle, TickUpHostProps>((props, 
         productId,
         licenseKey,
         licenseUserIdentifier,
+        licenseValidationOverride,
         showAttribution = true,
         themeVariant: themeVariantProp,
-        defaultThemeVariant = ChartTheme.light,
+        defaultThemeVariant,
         onThemeVariantChange,
         interval,
         onIntervalChange,
@@ -239,7 +245,16 @@ export const TickUpHost = forwardRef<TickUpHostHandle, TickUpHostProps>((props, 
     const [finalStyleOptions, setStyleOptions] = useState<DeepRequired<ChartOptions>>(() =>
         deepMerge(DEFAULT_GRAPH_OPTIONS, chartOptions)
     );
-    const [internalThemeVariant, setInternalThemeVariant] = useState<ChartTheme>(defaultThemeVariant);
+    const [internalThemeVariant, setInternalThemeVariant] = useState<ChartTheme>(() => {
+        if (defaultThemeVariant != null) {
+            return defaultThemeVariant;
+        }
+        const hintedEngine = chartOptions?.base?.engine;
+        if (productId === TickUpProductId.prime || hintedEngine === TickUpRenderEngine.prime) {
+            return ChartTheme.dark;
+        }
+        return ChartTheme.light;
+    });
     const isThemeControlled = themeVariantProp !== undefined;
     const themeVariant = isThemeControlled ? themeVariantProp! : internalThemeVariant;
 
@@ -664,6 +679,10 @@ export const TickUpHost = forwardRef<TickUpHostHandle, TickUpHostProps>((props, 
 
     const [isLicenseValid, setIsLicenseValid] = useState(false);
     useEffect(() => {
+        if (typeof licenseValidationOverride === 'boolean') {
+            setIsLicenseValid(licenseValidationOverride);
+            return;
+        }
         let cancelled = false;
         validateLicense(licenseKey, licenseUserIdentifier)
             .then((ok) => {
@@ -679,7 +698,7 @@ export const TickUpHost = forwardRef<TickUpHostHandle, TickUpHostProps>((props, 
         return () => {
             cancelled = true;
         };
-    }, [licenseKey, licenseUserIdentifier]);
+    }, [licenseKey, licenseUserIdentifier, licenseValidationOverride]);
 
     const primeTierEval = productId === TickUpProductId.prime && !isLicenseValid;
     const primeEngineEval = chartOptionsForStage.base.engine === TickUpRenderEngine.prime && !isLicenseValid;
@@ -719,9 +738,9 @@ export const TickUpHost = forwardRef<TickUpHostHandle, TickUpHostProps>((props, 
                             fontSize: 11,
                             textAlign: 'center',
                             fontFamily: 'system-ui, sans-serif',
-                            backgroundColor: themeVariant === ChartTheme.dark ? '#2d333b' : '#fff8e1',
-                            color: themeVariant === ChartTheme.dark ? '#d4d4d8' : '#5c4a00',
-                            borderBottom: `1px solid ${themeVariant === ChartTheme.dark ? '#444c56' : '#f0d060'}`,
+                            backgroundColor: themeVariant === ChartTheme.dark ? 'rgba(120, 53, 15, 0.3)' : '#fff8e1',
+                            color: themeVariant === ChartTheme.dark ? '#ffffff' : '#5c4a00',
+                            borderBottom: `1px solid ${themeVariant === ChartTheme.dark ? 'rgba(245, 158, 11, 0.45)' : '#f0d060'}`,
                         }}
                     >
                         TickUp Prime tier — evaluation mode. Provide <code>licenseKey</code> when your license is active.

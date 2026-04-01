@@ -1,12 +1,13 @@
 import {
     ChartTheme,
-    TickUpRenderEngine,
     TickUpStandardEngine as CoreStandardEngine,
-    type ChartOptions,
+    type TickUpRenderEngine,
     type TickUpChartEngine,
 } from 'tickup';
 
 type EnginePatch = ReturnType<TickUpChartEngine['getChartOptionsPatch']>;
+const PRIME_ENGINE_ID = 'prime' as unknown as TickUpRenderEngine;
+const STANDARD_ENGINE_ID = 'standard' as unknown as TickUpChartEngine['id'];
 
 /** Prime “Neon Future” palette */
 export const TICKUP_PRIME_PRIMARY = '#3EC5FF';
@@ -15,7 +16,7 @@ export const TICKUP_PRIME_TEXT = '#E7EBFF';
 
 const PRIME_PATCH: EnginePatch = {
     base: {
-        engine: TickUpRenderEngine.prime,
+        engine: PRIME_ENGINE_ID,
         theme: ChartTheme.dark,
         style: {
             backgroundColor: '#0b0e14',
@@ -66,7 +67,7 @@ const PRIME_PATCH: EnginePatch = {
 /** Prime renderer on a **light** plot (toolbar + canvas follow `base.theme: ChartTheme.light`). */
 const PRIME_PATCH_LIGHT: EnginePatch = {
     base: {
-        engine: TickUpRenderEngine.prime,
+        engine: PRIME_ENGINE_ID,
         theme: ChartTheme.light,
         style: {
             backgroundColor: '#ffffff',
@@ -121,9 +122,9 @@ export function getTickUpPrimeThemePatch(theme: ChartTheme): EnginePatch {
 }
 
 /** Use with `ref.setEngine(...)` so Prime stays aligned when toggling shell theme. */
-export function createTickUpPrimeEngine(theme: ChartTheme): TickUpChartEngine {
+export function createTickUpPrimeEngine(theme: ChartTheme = ChartTheme.dark): TickUpChartEngine {
     return {
-        id: TickUpRenderEngine.prime,
+        id: PRIME_ENGINE_ID,
         getChartOptionsPatch: () => getTickUpPrimeThemePatch(theme),
     };
 }
@@ -134,12 +135,12 @@ function standardPatch(): EnginePatch {
 
 /** Prime engine profile — dark plot; use {@link createTickUpPrimeEngine} when the host is light. */
 export const TickUpPrime: TickUpChartEngine = {
-    id: TickUpRenderEngine.prime,
+    id: PRIME_ENGINE_ID,
     getChartOptionsPatch: () => PRIME_PATCH,
 };
 
 /** Default canvas look — reverses Prime styling to library defaults (light). */
 export const TickUpStandardEngine: TickUpChartEngine = {
-    id: CoreStandardEngine.id,
+    id: STANDARD_ENGINE_ID,
     getChartOptionsPatch: () => standardPatch(),
 };

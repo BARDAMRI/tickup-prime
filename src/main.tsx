@@ -1,9 +1,10 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import {TickUpCommand} from './components/TickUpProducts';
+import {TickUpPrimeTier} from './components/TickUpProducts';
+import {TickUpRenderEngine} from './types/chartOptions';
 
 if (typeof document !== 'undefined') {
-    document.title = 'TickUp Charts — Interactive charts';
+    document.title = 'TickUp Prime — Evaluation Mode';
 }
 
 const root = document.getElementById('root') as HTMLElement;
@@ -11,7 +12,17 @@ const root = document.getElementById('root') as HTMLElement;
 ReactDOM.createRoot(root).render(
     <React.StrictMode>
         <div style={{height: '100vh', width: '100vw'}}>
-            <TickUpCommand />
+            <TickUpPrimeTier
+                licenseUserIdentifier="tester@tickup.com"
+                licenseKey="TKUP-PRO-HGLHS0CXCSUWLHANHKS0"
+                chartOptions={{
+                    base: {
+                        engine: TickUpRenderEngine.prime,
+                        showCrosshair: true,
+                        showCrosshairValues: true,
+                    }
+                }}
+            />
         </div>
     </React.StrictMode>
 );

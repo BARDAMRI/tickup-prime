@@ -13,7 +13,7 @@
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "styled-components": "^6.1.19",
-    "tickup": "^1.0.7"
+    "tickup": "^1.0.12"
   },
   "devDependencies": {
     "@types/react": "^19.1.8",

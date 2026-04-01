@@ -3,6 +3,7 @@ name: Sync TickUp Core
 on:
   workflow_dispatch:
   repository_dispatch:
+    types: [core_updated]
 
 permissions:
   contents: write
@@ -17,17 +18,22 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
           cache-dependency-path: |
             package-lock.json
             example/package-lock.json
 
+      - name: Configure git identity
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
       - name: Install latest tickup in root
         run: npm install tickup@latest
 
-      - name: Install latest tickup in example
-        run: npm install --prefix example tickup@latest
+      - name: Install dependencies in example
+        run: npm install --prefix example
 
       - name: Commit and push if changed
         run: |
@@ -36,10 +42,43 @@ jobs:
             exit 0
           fi
 
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add package.json package-lock.json example/package.json example/package-lock.json
           git commit -m "chore: sync with latest tickup core [skip ci]"
           git push origin main
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  deploy-showcase:
+    needs: sync-core
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout latest main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            example/package-lock.json
+
+      - name: Install root dependencies cleanly
+        run: npm ci
+
+      - name: Install example dependencies cleanly
+        run: npm ci --prefix example
+
+      - name: Build Prime library
+        run: npm run build
+
+      - name: Build showcase
+        run: npm run build --prefix example
+
+      - name: Deploy example to gh-pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./example/dist

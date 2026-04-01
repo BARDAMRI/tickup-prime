@@ -74,7 +74,7 @@
     "sass": "^1.89.2",
     "sass-embedded": "^1.87.0",
     "styled-components": "^6.1.19",
-    "tickup": "^1.0.30",
+    "tickup": "^1.0.31",
     "ts-jest": "^29.3.4",
     "typescript": "~5.7.2",
     "vite": "^5.4.19",

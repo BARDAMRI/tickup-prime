@@ -79,6 +79,6 @@
   },
   "dependencies": {
     "date-fns": "^4.1.0",
-    "lucide-react": "^0.541.0"
+    "lucide-react": "^1.7.0"
   }
 }

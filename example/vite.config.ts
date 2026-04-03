@@ -13,10 +13,10 @@ export default defineConfig({
     plugins: [react()],
     resolve: {
         extensions: ['.tsx', '.ts', '.js'],
-        // Map imports directly to src to pick up edits without a rebuild
+        // Simulate customer usage by consuming the built dist bundle.
         alias: [
-            {find: 'tickup/full', replacement: path.join(repoRoot, 'src/full.ts')},
-            {find: 'tickup', replacement: path.join(repoRoot, 'src/index.ts')},
+            {find: 'tickup/full', replacement: tickupFullEntry},
+            {find: 'tickup', replacement: tickupEntry},
             {find: '@brand', replacement: path.join(repoRoot, 'src/assets/brand')},
         ],
     },

@@ -3,10 +3,10 @@
     "baseUrl": ".",
     "paths": {
       "tickup": [
-        "../src/index"
+        "../dist/index"
       ],
       "tickup/full": [
-        "../src/full"
+        "../dist/full"
       ],
       "@brand/*": [
         "../src/assets/brand/*"

@@ -573,7 +573,16 @@ export default function App() {
                 </div>
 
                 <div className="flex flex-col gap-16">
-                    {TIER_ROWS.map(({key, title, blurb, Cmp, lux}) => (
+                    {TIER_ROWS.map(({key, title, blurb, Cmp, lux}) => {
+                        const tierProps =
+                            key === 'prime'
+                                ? {
+                                    ...sharedProps,
+                                    themeVariant: ChartTheme.dark,
+                                    defaultThemeVariant: ChartTheme.dark,
+                                }
+                                : sharedProps;
+                        return (
                         <section 
                             key={key} 
                             className={`group relative overflow-hidden rounded-[2rem] border transition-all duration-500 ${
@@ -610,11 +619,12 @@ export default function App() {
                                         ? (theme === ChartTheme.dark ? 'h-[550px] border-[#3EC5FF]/20 shadow-[inset_0_0_40px_rgba(62,197,255,0.05)]' : 'h-[550px] border-[#3EC5FF]/30 shadow-[inset_0_0_20px_rgba(62,197,255,0.02)]') 
                                         : (theme === ChartTheme.dark ? 'h-[500px] border-white/10' : 'h-[500px] border-slate-200')
                                 }`}>
-                                    <Cmp ref={tierRefCallbacks[key]} {...sharedProps} />
+                                    <Cmp ref={tierRefCallbacks[key]} {...tierProps} />
                                 </div>
                             </div>
                         </section>
-                    ))}
+                        );
+                    })}
                 </div>
                 </main>
             )}

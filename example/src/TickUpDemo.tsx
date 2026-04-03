@@ -271,8 +271,15 @@ export default function TickUpDemo({ onOpenCompare, onIntervalFeedRequest, onRan
     const [licenseKey, setLicenseKey] = useState('');
     const [userEmail, setUserEmail] = useState('');
     const [licenseValid, setLicenseValid] = useState(false);
+    const [isLicenseModalOpen, setIsLicenseModalOpen] = useState(false);
+    const [isVerifyingLicense, setIsVerifyingLicense] = useState(false);
+    const [statusMessage, setStatusMessage] = useState<{ tone: 'error' | 'success'; text: string } | null>(null);
+    const [licenseActivationError, setLicenseActivationError] = useState<string | null>(null);
+    const [licenseInputsErrorFlash, setLicenseInputsErrorFlash] = useState(false);
     const [isIntervalMenuOpen, setIsIntervalMenuOpen] = useState(false);
     const toastTimerRef = useRef<number | null>(null);
+    const licenseErrorFlashTimerRef = useRef<number | null>(null);
+    const licenseSuccessCloseTimerRef = useRef<number | null>(null);
     const prevLicenseValidRef = useRef(false);
     const intervalMenuRef = useRef<HTMLDivElement | null>(null);
 
@@ -290,6 +297,12 @@ export default function TickUpDemo({ onOpenCompare, onIntervalFeedRequest, onRan
     useEffect(() => () => {
         if (toastTimerRef.current != null) {
             window.clearTimeout(toastTimerRef.current);
+        }
+        if (licenseErrorFlashTimerRef.current != null) {
+            window.clearTimeout(licenseErrorFlashTimerRef.current);
+        }
+        if (licenseSuccessCloseTimerRef.current != null) {
+            window.clearTimeout(licenseSuccessCloseTimerRef.current);
         }
     }, []);
 
@@ -323,7 +336,7 @@ export default function TickUpDemo({ onOpenCompare, onIntervalFeedRequest, onRan
 
     useEffect(() => {
         if (licenseValid && !prevLicenseValidRef.current) {
-            showToastNow('Pro Features Unlocked.', 2800);
+            showToastNow('License verified. Pro features are now active.', 3000);
         }
         prevLicenseValidRef.current = licenseValid;
     }, [licenseValid, showToastNow]);
@@ -831,6 +844,19 @@ export default function TickUpDemo({ onOpenCompare, onIntervalFeedRequest, onRan
                     </span>
                 </a>
                 <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
+                    <button
+                        type="button"
+                        onClick={() => setIsLicenseModalOpen(true)}
+                        className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-wide ${
+                            licenseValid
+                                ? 'bg-emerald-500/10 border border-emerald-500/50 text-emerald-500'
+                                : 'bg-red-500/10 border border-red-500/50 text-red-500'
+                        } cursor-pointer transition-transform hover:scale-105`}
+                        title={licenseValid ? 'Prime license active' : 'Evaluation mode active'}
+                    >
+                        {licenseValid ? <ShieldCheck className="h-3.5 w-3.5" /> : <LockKeyhole className="h-3.5 w-3.5" />}
+                        {licenseValid ? 'PRO ACTIVE' : 'EVALUATION'}
+                    </button>
                     <div
                         className={`flex rounded-lg border p-0.5 text-[10px] font-semibold uppercase tracking-wide ${isPageDark ? 'border-white/15 bg-black/30' : 'border-slate-300 bg-white/90'
                             }`}
@@ -1041,14 +1067,13 @@ export default function TickUpDemo({ onOpenCompare, onIntervalFeedRequest, onRan
                                     key={key}
                                     type="button"
                                     onClick={() => setChartKind(key)}
-                                    className={`flex items-center gap-1.5 rounded-md px-4 py-1.5 text-[11px] font-semibold capitalize md:text-xs ${chartKind === key
+                                    className={`flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-[11px] font-semibold capitalize md:px-3 md:text-xs ${chartKind === key
                                         ? 'bg-[#3EC5FF] text-black'
-                                        : 'text-slate-100 hover:bg-white/10 hover:text-white'
+                                        : 'text-slate-400 hover:bg-white/10 hover:text-white'
                                         }`}
                                 >
                                     <Icon className="h-3.5 w-3.5 opacity-80" />
                                     {label}
-                                    <ChevronDown className="h-3.5 w-3.5 opacity-70" />
                                 </button>
                             ))}
                         </div>
@@ -1056,9 +1081,9 @@ export default function TickUpDemo({ onOpenCompare, onIntervalFeedRequest, onRan
                             <button
                                 type="button"
                                 onClick={() => setIsIntervalMenuOpen((v) => !v)}
-                                className={`inline-flex items-center justify-center gap-2 rounded-lg border px-4 py-1.5 font-mono text-xs transition-colors ${
+                                className={`inline-flex items-center justify-center gap-2 rounded-lg border px-3 py-1.5 font-mono text-xs transition-colors ${
                                     isPageDark
-                                        ? 'border-white/20 bg-white/5 text-white hover:bg-white/10'
+                                        ? 'border-white/20 bg-white/5 text-slate-100 hover:bg-white/10'
                                         : 'border-slate-300 bg-white text-slate-800 hover:bg-slate-50'
                                 }`}
                                 aria-haspopup="menu"
@@ -1144,16 +1169,12 @@ export default function TickUpDemo({ onOpenCompare, onIntervalFeedRequest, onRan
                                     licenseUserIdentifier={userEmail}
                                     licenseValidationOverride={licenseValid}
                                 />
+                                {!licenseValid ? (
+                                    <div className="pointer-events-none absolute bottom-4 left-1/2 z-30 -translate-x-1/2 rounded-lg border border-red-500/40 bg-slate-950/70 px-3 py-1.5 text-xs font-semibold text-red-300 backdrop-blur-md">
+                                        License Required for Prime Features
+                                    </div>
+                                ) : null}
                                 {/* Optional decoration (brand assets removed for repo portability). */}
-                            </div>
-
-                            <div className="pointer-events-none absolute right-4 top-4 z-[9999] md:right-5">
-                                <ChartHud
-                                    isDark={isPageDark}
-                                    primeMode={primeMode}
-                                    barCount={displayIntervals.length}
-                                    licenseValid={licenseValid ?? false}
-                                />
                             </div>
 
                             {showTickPreviews && (
@@ -1493,79 +1514,140 @@ export default function TickUpDemo({ onOpenCompare, onIntervalFeedRequest, onRan
                     {toast}
                 </div>
             ) : null}
-        </div>
-    );
-}
 
-/** HUD updates FPS in isolation so live OHLC ticks do not re-render this counter via the parent. */
-function ChartHud({
-    isDark,
-    primeMode,
-    barCount,
-    licenseValid,
-}: {
-    isDark: boolean;
-    primeMode: boolean;
-    barCount: number;
-    licenseValid: boolean;
-}) {
-    const [fps, setFps] = useState(60);
-    useEffect(() => {
-        let frames = 0;
-        let last = performance.now();
-        let raf = 0;
-        const loop = (now: number) => {
-            frames += 1;
-            const dt = now - last;
-            if (dt >= 500) {
-                setFps(Math.round((frames * 1000) / dt));
-                frames = 0;
-                last = now;
-            }
-            raf = requestAnimationFrame(loop);
-        };
-        raf = requestAnimationFrame(loop);
-        return () => cancelAnimationFrame(raf);
-    }, []);
-
-    return (
-        <div
-            className={`pointer-events-auto rounded-xl border px-3 py-2 font-mono text-[11px] leading-relaxed md:text-xs ${isDark
-                ? 'bg-slate-900/40 backdrop-blur-md border-white/10 text-[#E7EBFF]'
-                : 'glass-panel-light border-slate-200 text-slate-800'
-                }`}
-        >
-            <div>
-                <span className="text-slate-500">FPS </span>
-                <span className="text-[#3EC5FF]">{fps}</span>
-            </div>
-            <div>
-                <span className="text-slate-500">Engine </span>
-                <span className="text-[#5A48DE]">{primeMode ? 'Prime' : 'Standard'}</span>
-            </div>
-            <div>
-                <span className="text-slate-500">Bars </span>
-                <span className={isDark ? 'text-emerald-300' : 'text-emerald-700'}>
-                    {barCount.toLocaleString()}
-                </span>
-            </div>
-            <div className="flex items-center gap-1.5">
-                <span className="text-slate-500">License </span>
-                <span
-                    className={`inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 transition-colors duration-300 ${
-                        licenseValid
-                            ? 'bg-emerald-500/20 text-emerald-100 shadow-[0_0_16px_rgba(16,185,129,0.38)]'
-                            : 'bg-red-500/20 text-red-100'
-                    }`}
-                >
-                    {licenseValid ? (
-                        <ShieldCheck className="h-3 w-3 text-emerald-400 transition-colors duration-300" />
-                    ) : (
-                        <LockKeyhole className="h-3 w-3 text-red-500 drop-shadow-[0_0_6px_rgba(239,68,68,0.9)] transition-colors duration-300" />
-                    )}
-                    {licenseValid ? 'Unlocked' : 'Locked'}
-                </span>
-            </div>
+            {isLicenseModalOpen ? (
+                <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/50 p-4 backdrop-blur-xl">
+                    <div className="w-full max-w-md rounded-2xl border border-slate-700 bg-slate-900/90 p-5 shadow-2xl">
+                        <div className="mb-4 flex items-center justify-between">
+                            <h3 className="text-sm font-semibold uppercase tracking-wider text-slate-100">License Activation</h3>
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setIsLicenseModalOpen(false);
+                                    setStatusMessage(null);
+                                }}
+                                className="rounded-md border border-slate-700 px-2 py-1 text-xs text-slate-300 hover:border-slate-500 hover:text-white"
+                            >
+                                Close
+                            </button>
+                        </div>
+                        <p className="mb-4 text-xs text-slate-400">
+                            Unlock Prime by verifying your vault key and user identifier.
+                        </p>
+                        <label className="mb-3 block text-xs font-semibold uppercase tracking-wider text-slate-300">
+                            User Identifier
+                            <input
+                                type="text"
+                                value={userEmail}
+                                onChange={(e) => {
+                                    setUserEmail(e.target.value);
+                                    if (licenseActivationError) {
+                                        setLicenseActivationError(null);
+                                    }
+                                }}
+                                placeholder="bar@tickup.io"
+                                className={`mt-1 w-full rounded-lg border bg-slate-950/70 px-3 py-2 text-sm text-white outline-none ring-[#3EC5FF]/40 focus:ring-2 ${
+                                    licenseInputsErrorFlash ? 'border-red-500' : 'border-slate-700'
+                                }`}
+                            />
+                        </label>
+                        <label className="mb-4 block text-xs font-semibold uppercase tracking-wider text-slate-300">
+                            License Key
+                            <input
+                                type="text"
+                                value={licenseKey}
+                                onChange={(e) => {
+                                    setLicenseKey(e.target.value);
+                                    if (licenseActivationError) {
+                                        setLicenseActivationError(null);
+                                    }
+                                }}
+                                placeholder="TKUP-PRO-XXXX..."
+                                className={`mt-1 w-full rounded-lg border bg-slate-950/70 px-3 py-2 font-mono text-sm text-white outline-none ring-[#3EC5FF]/40 focus:ring-2 ${
+                                    licenseInputsErrorFlash ? 'border-red-500' : 'border-slate-700'
+                                }`}
+                            />
+                        </label>
+                        {licenseActivationError ? (
+                            <div className="mb-3 text-xs font-medium text-red-400">
+                                {licenseActivationError}
+                            </div>
+                        ) : null}
+                        {statusMessage ? (
+                            <div
+                                className={`mb-3 text-xs font-medium ${
+                                    statusMessage.tone === 'success' ? 'text-emerald-400' : 'text-red-400'
+                                }`}
+                            >
+                                {statusMessage.text}
+                            </div>
+                        ) : null}
+                        <button
+                            type="button"
+                            disabled={isVerifyingLicense}
+                            onClick={async () => {
+                                setIsVerifyingLicense(true);
+                                setLicenseActivationError(null);
+                                setStatusMessage(null);
+                                try {
+                                    const ok = await validateLicense(licenseKey, userEmail);
+                                    setLicenseValid(ok);
+                                    if (ok) {
+                                        window.localStorage.setItem('tickup.prime.licenseKey', licenseKey);
+                                        window.localStorage.setItem('tickup.prime.licenseUser', userEmail);
+                                        setStatusMessage({
+                                            tone: 'success',
+                                            text: 'License Verified! Pro features activated.',
+                                        });
+                                        if (licenseSuccessCloseTimerRef.current != null) {
+                                            window.clearTimeout(licenseSuccessCloseTimerRef.current);
+                                        }
+                                        licenseSuccessCloseTimerRef.current = window.setTimeout(() => {
+                                            setIsLicenseModalOpen(false);
+                                            setStatusMessage(null);
+                                            licenseSuccessCloseTimerRef.current = null;
+                                        }, 900);
+                                    } else {
+                                        setLicenseActivationError('Invalid License Key or User ID. Please verify your credentials.');
+                                        setStatusMessage({
+                                            tone: 'error',
+                                            text: 'Invalid License Key or User ID. Please verify your credentials.',
+                                        });
+                                        setLicenseInputsErrorFlash(true);
+                                        if (licenseErrorFlashTimerRef.current != null) {
+                                            window.clearTimeout(licenseErrorFlashTimerRef.current);
+                                        }
+                                        licenseErrorFlashTimerRef.current = window.setTimeout(() => {
+                                            setLicenseInputsErrorFlash(false);
+                                            licenseErrorFlashTimerRef.current = null;
+                                        }, 1200);
+                                    }
+                                } catch {
+                                    setLicenseValid(false);
+                                    setLicenseActivationError('Invalid License Key or User ID. Please verify your credentials.');
+                                    setStatusMessage({
+                                        tone: 'error',
+                                        text: 'Invalid License Key or User ID. Please verify your credentials.',
+                                    });
+                                    setLicenseInputsErrorFlash(true);
+                                    if (licenseErrorFlashTimerRef.current != null) {
+                                        window.clearTimeout(licenseErrorFlashTimerRef.current);
+                                    }
+                                    licenseErrorFlashTimerRef.current = window.setTimeout(() => {
+                                        setLicenseInputsErrorFlash(false);
+                                        licenseErrorFlashTimerRef.current = null;
+                                    }, 1200);
+                                } finally {
+                                    setIsVerifyingLicense(false);
+                                }
+                            }}
+                            className="w-full rounded-lg border border-[#3EC5FF]/40 bg-[#3EC5FF]/15 px-3 py-2 text-xs font-semibold uppercase tracking-wider text-[#7dd3fc] transition-colors hover:bg-[#3EC5FF]/25 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                            {isVerifyingLicense ? 'Verifying...' : 'Verify & Activate'}
+                        </button>
+                    </div>
+                </div>
+            ) : null}
         </div>
     );
 }

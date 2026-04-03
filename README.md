@@ -44,6 +44,37 @@ const primeEngine = createTickUpPrimeEngine();
 />;
 ```
 
+## 🔐 Prime Licensing Props
+
+To remove evaluation watermarks and unlock Prime-only acceleration paths, pass the licensing props into your host:
+
+- `licenseKey`: your issued key (`TKUP-PRO-...`)
+- `licenseUserIdentifier`: the user identifier used when generating the key (email/account id)
+
+```tsx
+import { TickUpHost } from 'tickup/full';
+import { createTickUpPrimeEngine, validateLicense } from '@tickup/prime';
+
+const key = 'TKUP-PRO-XXXX';
+const userIdentifier = 'bar@tickup.io';
+
+const isValid = await validateLicense(key, userIdentifier);
+
+<TickUpHost
+  intervalsArray={data}
+  chartOptions={createTickUpPrimeEngine().getChartOptionsPatch()}
+  licenseKey={key}
+  licenseUserIdentifier={userIdentifier}
+  licenseValidationOverride={isValid}
+/>;
+```
+
+> `licenseUserIdentifier` is the runtime user identifier prop (sometimes called `userIdentifier` in app-level UIs).
+
+### Security Note
+
+License verification runs locally using HMAC-SHA256-compatible validation logic. During this check, no license secrets or user identifiers are sent to external servers.
+
 ## 📖 Prime Documentation
 
 - **Custom Neon Themes Guide** — [https://BARDAMRI.github.io/tickup-charts/](https://BARDAMRI.github.io/tickup-charts/)

@@ -7,6 +7,7 @@ export interface ModeButtonProps {
     onClickHandler: any;
     children?: ReactNode;
     className?: string;
+    disabled?: boolean;
 }
 
 export interface ButtonProps {

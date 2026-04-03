@@ -572,6 +572,39 @@ export default function App() {
                     </div>
                 </div>
 
+                <section className={`rounded-2xl border p-5 lg:p-7 ${theme === ChartTheme.dark ? 'border-white/10 bg-white/[0.02]' : 'border-slate-200 bg-white'}`}>
+                    <div className="mb-4 flex items-center justify-between gap-3">
+                        <h2 className={`text-xl font-bold lg:text-2xl ${theme === ChartTheme.dark ? 'text-white' : 'text-slate-900'}`}>
+                            Choose Your Power
+                        </h2>
+                        <span className={`rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-wider ${theme === ChartTheme.dark ? 'border-white/15 bg-white/5 text-slate-300' : 'border-slate-200 bg-slate-50 text-slate-700'}`}>
+                            Core vs Prime
+                        </span>
+                    </div>
+                    <div className="grid gap-2 text-sm">
+                        <div className={`grid grid-cols-3 rounded-lg border px-3 py-2 font-semibold ${theme === ChartTheme.dark ? 'border-white/10 bg-black/30 text-slate-200' : 'border-slate-200 bg-slate-50 text-slate-800'}`}>
+                            <span>Capability</span>
+                            <span>Core</span>
+                            <span>Prime</span>
+                        </div>
+                        <div className={`grid grid-cols-3 rounded-lg border px-3 py-2 ${theme === ChartTheme.dark ? 'border-white/10 text-slate-300' : 'border-slate-200 text-slate-700'}`}>
+                            <span>Render Rate</span>
+                            <span>1Hz</span>
+                            <span className="font-semibold text-[#3EC5FF]">60fps</span>
+                        </div>
+                        <div className={`grid grid-cols-3 rounded-lg border px-3 py-2 ${theme === ChartTheme.dark ? 'border-white/10 text-slate-300' : 'border-slate-200 text-slate-700'}`}>
+                            <span>History Window</span>
+                            <span>2k candles</span>
+                            <span className="font-semibold text-[#3EC5FF]">Unlimited</span>
+                        </div>
+                        <div className={`grid grid-cols-3 rounded-lg border px-3 py-2 ${theme === ChartTheme.dark ? 'border-white/10 text-slate-300' : 'border-slate-200 text-slate-700'}`}>
+                            <span>Pro Indicators</span>
+                            <span>Limited</span>
+                            <span className="font-semibold text-[#3EC5FF]">Full suite</span>
+                        </div>
+                    </div>
+                </section>
+
                 <div className="flex flex-col gap-16">
                     {TIER_ROWS.map(({key, title, blurb, Cmp, lux}) => {
                         const tierProps =
@@ -580,6 +613,7 @@ export default function App() {
                                     ...sharedProps,
                                     themeVariant: ChartTheme.dark,
                                     defaultThemeVariant: ChartTheme.dark,
+                                    licenseValidationOverride: false,
                                 }
                                 : sharedProps;
                         return (

@@ -65,6 +65,7 @@ import {
 } from '../../branding/tickupWatermark';
 import {isPrimeEngine} from '../../engines/prime/PrimeRenderer';
 import {TICKUP_PRIME_PRIMARY, TICKUP_PRIME_SECONDARY} from '../../engines/prime/TickUpPrime';
+import {snapPriceToNearestOHLC} from '../../engines/prime/premium/magneticSnap';
 function syncTriangleNormalization(shape: IDrawingShape | null, rc: ChartRenderContext | null, pr: PriceRange) {
     if (!shape || !rc) return;
     if (shape instanceof TriangleShape) {
@@ -101,8 +102,9 @@ function tickupWatermarkDrawOpts(
     }
     return {
         opacity: dark ? 0.32 : 0.20,
-        placement: TickUpWatermarkPlacement.center,
-        padding: 0,
+        placement: TickUpWatermarkPlacement.bottomRight,
+        padding: 8,
+        maxWidthFrac: 0.28,
     };
 }
 
@@ -145,6 +147,10 @@ interface ChartCanvasProps {
     brandTheme?: ChartTheme;
     /** Prime license evaluation overlay on top of chart layers. */
     showEvaluationWatermark?: boolean;
+    /** Snap drawing price points to nearest candle OHLC while drawing. */
+    magnetEnabled?: boolean;
+    /** Unlock Prime throughput path (removes Core caps/throttle). */
+    primePerformanceUnlocked?: boolean;
 }
 
 export interface ChartCanvasHandle {
@@ -176,6 +182,8 @@ const ChartCanvasInner: React.ForwardRefRenderFunction<ChartCanvasHandle, ChartC
         showBrandWatermark = true,
         brandTheme = ChartTheme.light,
         showEvaluationWatermark = false,
+        magnetEnabled = false,
+        primePerformanceUnlocked = false,
     },
     ref
 ) => {
@@ -210,7 +218,13 @@ const ChartCanvasInner: React.ForwardRefRenderFunction<ChartCanvasHandle, ChartC
     /** Pan/zoom only in default mode so Select/Edit can click shapes without starting a drag. */
     const isPanZoomMode = mode === Mode.none;
     const {renderContext, intervalSeconds} = useChartData(
-        intervalsArray, visibleRange, hoverPoint, canvasSizes.width, canvasSizes.height
+        intervalsArray,
+        visibleRange,
+        hoverPoint,
+        canvasSizes.width,
+        canvasSizes.height,
+        chartOptions.base.engine,
+        primePerformanceUnlocked,
     );
 
     const reseedDraftShape = useCallback(() => {
@@ -801,7 +815,10 @@ const ChartCanvasInner: React.ForwardRefRenderFunction<ChartCanvasHandle, ChartC
         if (isInteractionMode) return;
 
         const time = xToTime(x, renderContext!.canvasWidth, renderContext!.visibleRange);
-        const price = yToPrice(y, renderContext!.canvasHeight, visiblePriceRange);
+        const rawPrice = yToPrice(y, renderContext!.canvasHeight, visiblePriceRange);
+        const price = magnetEnabled
+            ? snapPriceToNearestOHLC(time, rawPrice, intervalsArray)
+            : rawPrice;
         const pt = {time, price};
 
         if (mode === Mode.drawAngle && angleDrawPhaseRef.current === 2) {
@@ -824,7 +841,10 @@ const ChartCanvasInner: React.ForwardRefRenderFunction<ChartCanvasHandle, ChartC
             mode !== Mode.drawPolyline;
         if (isDrawingMode && createdShape.current && renderContext && (createdShape.current?.points.length ?? 0) > 0) {
             const endTime = xToTime(point.x, renderContext.canvasWidth, renderContext.visibleRange);
-            const endPrice = yToPrice(point.y, renderContext.canvasHeight, visiblePriceRange);
+            const rawEndPrice = yToPrice(point.y, renderContext.canvasHeight, visiblePriceRange);
+            const endPrice = magnetEnabled
+                ? snapPriceToNearestOHLC(endTime, rawEndPrice, intervalsArray)
+                : rawEndPrice;
             const pt = {time: endTime, price: endPrice};
             syncTriangleNormalization(createdShape.current, renderContext, visiblePriceRange);
             if (mode === Mode.drawAngle && createdShape.current instanceof AngleShape && angleDrawPhaseRef.current === 2) {
@@ -849,7 +869,10 @@ const ChartCanvasInner: React.ForwardRefRenderFunction<ChartCanvasHandle, ChartC
     const handleMouseUp = () => {
         if (!createdShape.current || !currentPointRef.current || !renderContext || mode === Mode.drawPolyline) return;
         const endTime = xToTime(currentPointRef.current!.x, renderContext.canvasWidth, renderContext.visibleRange);
-        const endPrice = yToPrice(currentPointRef.current!.y, renderContext.canvasHeight, visiblePriceRange);
+        const rawEndPrice = yToPrice(currentPointRef.current!.y, renderContext.canvasHeight, visiblePriceRange);
+        const endPrice = magnetEnabled
+            ? snapPriceToNearestOHLC(endTime, rawEndPrice, intervalsArray)
+            : rawEndPrice;
         const endPoint: DrawingPoint = {time: endTime, price: endPrice};
         syncTriangleNormalization(createdShape.current, renderContext, visiblePriceRange);
 

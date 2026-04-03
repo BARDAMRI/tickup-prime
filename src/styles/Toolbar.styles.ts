@@ -156,6 +156,14 @@ export const ToolbarVerticalButton = styled.button.attrs({className: 'vertical-t
         transform: translateY(0);
         box-shadow: 0 3px 10px rgba(25, 30, 60, 0.22), inset 0 1px 3px rgba(0, 0, 0, 0.15);
     }
+    
+    &:disabled {
+        cursor: not-allowed;
+        opacity: 0.45;
+        transform: none;
+        box-shadow: none;
+        background-image: none;
+    }
 
     ${({$selected}) => $selected && `
         box-shadow: 0 10px 28px rgba(80, 90, 220, 0.35), 0 0 0 3px rgba(120, 130, 255, 0.28);

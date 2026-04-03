@@ -54,6 +54,8 @@ const OVERLAY_DEFAULT_STYLE: DeepRequired<OverlayOptions> = {
     lineColor: "#ff9800", // Orange
     lineWidth: 1,
     lineStyle: StrokeLineStyle.solid,
+    glowColor: "transparent",
+    glowBlur: 0,
 }
 const AXES_DEFAULT_STYLE: DeepRequired<AxesStyleOptions> = {
     axisPosition: AxesPosition.left,
@@ -90,11 +92,15 @@ const DRAWINGS_DEFAULT_STYLE: DeepRequired<DrawingStyleOptions> = {
     lineWidth: 2,
     lineStyle: StrokeLineStyle.solid,
     fillColor: "rgba(33, 150, 243, 0.2)", // Semi-transparent version of the line color
+    glowColor: "transparent",
+    glowBlur: 0,
     selected: {
         lineColor: "#ff9800", // Orange for highlight, consistent with overlays
         lineWidthAdd: 1, // Make the line thicker when selected
         lineStyle: StrokeLineStyle.dashed, // Make the line dashed to indicate selection
         fillColor: "rgba(255, 152, 0, 0.3)", // Semi-transparent orange fill
+        glowColor: "transparent",
+        glowBlur: 0,
     },
 }
 const DEFAULT_STYLES: DeepRequired<StyleOptions> = {

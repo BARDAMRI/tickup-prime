@@ -3,11 +3,12 @@ import {Mode, useMode} from '../../contexts/ModeContext';
 import {ModeButton} from './Buttons';
 import {
     ToolbarContainer,
-    ToolbarContent
+    ToolbarContent,
+    ToolbarVerticalButton,
 } from '../../styles/Toolbar.styles';
 import {Tooltip} from '../Tooltip';
 import {Placement, TooltipAlign, TooltipAxis} from '../../types/buttons';
-import {IconLine, IconRect, IconCircle, IconTriangle, IconAngle, IconSelect, IconPencil} from './icons';
+import {IconLine, IconRect, IconCircle, IconTriangle, IconAngle, IconSelect, IconPencil, IconMagnet} from './icons';
 
 import { translate, getLocaleDefaults } from '../../utils/i18n';
 
@@ -17,6 +18,10 @@ interface ToolbarProps {
     primeGlass?: boolean;
     /** Light frosted Prime chrome when the plot uses `base.theme: ChartTheme.light`. */
     primeGlassLight?: boolean;
+    isPrimeProLicensed?: boolean;
+    magnetEnabled?: boolean;
+    onToggleMagnet?: () => void;
+    onProFeatureRequest?: (featureId: 'magnet') => void;
 }
 
 export const Toolbar: React.FC<ToolbarProps> = ({ 
@@ -24,6 +29,10 @@ export const Toolbar: React.FC<ToolbarProps> = ({
     locale = 'en-US',
     primeGlass = false,
     primeGlassLight = false,
+    isPrimeProLicensed = false,
+    magnetEnabled = false,
+    onToggleMagnet,
+    onProFeatureRequest,
 }) => {
     const {mode, setMode} = useMode();
 
@@ -102,6 +111,42 @@ export const Toolbar: React.FC<ToolbarProps> = ({
                         currentMode={mode}
                         onClickHandler={setMode}
                     ><IconPencil active={mode === Mode.editShape}/></ModeButton>
+                </Tooltip>
+
+                <Tooltip
+                    content={isPrimeProLicensed ? 'Magnet Snap (OHLC)' : (
+                        <div className="flex flex-col gap-1">
+                            <span>Magnet Snapping is a Prime-only feature.</span>
+                            <button
+                                type="button"
+                                onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    onProFeatureRequest?.('magnet');
+                                }}
+                                className="text-left text-[11px] font-semibold text-[#7dd3fc] underline decoration-[#7dd3fc]/50 underline-offset-2"
+                            >
+                                [Upgrade Now]
+                            </button>
+                        </div>
+                    )}
+                    tooltipAxis={TooltipAxis.vertical}
+                    placement={Placement.auto}
+                    axis={TooltipAxis.vertical}
+                    align={TooltipAlign.center}
+                    dir={direction}
+                >
+                    <ToolbarVerticalButton
+                        $selected={magnetEnabled}
+                        disabled={!isPrimeProLicensed}
+                        onClick={() => {
+                            if (!isPrimeProLicensed) return;
+                            onToggleMagnet?.();
+                        }}
+                        aria-label="Toggle magnet snap"
+                    >
+                        <IconMagnet active={magnetEnabled}/>
+                    </ToolbarVerticalButton>
                 </Tooltip>
             </ToolbarContent>
         </ToolbarContainer>

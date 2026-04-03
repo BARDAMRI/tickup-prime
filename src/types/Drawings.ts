@@ -17,12 +17,17 @@ export interface DrawingStyleOptions {
     lineWidth: number;
     lineStyle: StrokeLineStyle;
     fillColor: string; // such as 'rgba(255, 0, 0, 0.2)'
+    /** Optional glow used by Prime Pro drawing tools. */
+    glowColor?: string;
+    glowBlur?: number;
 
     selected: {
         lineColor: string;
         lineWidthAdd?: number;
         lineStyle?: StrokeLineStyle;
         fillColor?: string;
+        glowColor?: string;
+        glowBlur?: number;
     }
 }
 
@@ -31,6 +36,8 @@ export type FinalDrawingStyle = {
     lineWidth: number;
     lineStyle: StrokeLineStyle;
     fillColor: string | 'transparent';
+    glowColor?: string;
+    glowBlur?: number;
 };
 
 

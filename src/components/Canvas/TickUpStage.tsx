@@ -1,7 +1,6 @@
 import React, {
     useCallback,
     useEffect,
-    useLayoutEffect,
     useMemo,
     useRef,
     useState,
@@ -181,6 +180,11 @@ export interface TickUpStageProps {
     themeVariant?: ChartTheme;
     showBrandWatermark?: boolean;
     showEvaluationWatermark?: boolean;
+    /** Enables Prime-only tools (VWAP, magnet snap, neon upgrades). */
+    proFeaturesEnabled?: boolean;
+    /** Unlocks Prime throughput path (removes Core caps/throttle). */
+    primePerformanceUnlocked?: boolean;
+    onProFeatureRequest?: (featureId: 'magnet') => void;
     /** Search/validation flow for interval changes (e.g. swap data feed). */
     onIntervalSearch?: (tf: string) => void | boolean | Promise<void | boolean>;
 }
@@ -272,6 +276,9 @@ export const TickUpStage = forwardRef<TickUpStageHandle, TickUpStageProps>(({
     themeVariant = ChartTheme.dark,
     showBrandWatermark = true,
     showEvaluationWatermark = false,
+    proFeaturesEnabled = false,
+    primePerformanceUnlocked = false,
+    onProFeatureRequest,
 }, ref) => {
     const { setMode } = useMode();
     const containerRef = useRef<HTMLDivElement | null>(null);
@@ -287,12 +294,21 @@ export const TickUpStage = forwardRef<TickUpStageHandle, TickUpStageProps>(({
         range: Math.max(...intervalsArray.map(inter => inter?.h || 0)) - Math.min(...intervalsArray.map(inter => inter?.l || 0))
     });
     const [drawings, setDrawings] = useState<IDrawingShape[]>([]);
+    const [magnetEnabled, setMagnetEnabled] = useState<boolean>(proFeaturesEnabled);
     const [alertState, setAlertState] = useState<{ isOpen: boolean; title: string; message: string }>({
         isOpen: false,
         title: '',
         message: ''
     });
     const [shapePropsOpen, setShapePropsOpen] = useState(false);
+    useEffect(() => {
+        if (!proFeaturesEnabled) {
+            setMagnetEnabled(false);
+            return;
+        }
+        setMagnetEnabled(true);
+    }, [proFeaturesEnabled]);
+
     const [shapePropsIndex, setShapePropsIndex] = useState<number | null>(null);
     const canvasRef = useRef<ChartCanvasHandle | null>(null);
     const chartViewRef = useRef<HTMLDivElement | null>(null);
@@ -453,7 +469,11 @@ export const TickUpStage = forwardRef<TickUpStageHandle, TickUpStageProps>(({
         }
     }, [onRefreshRequest, reloadViewToData]);
 
-    useLayoutEffect(() => {
+    /**
+     * Sync props → state in `useEffect` (not `useLayoutEffect`) so we do not nest synchronous layout
+     * updates with ChartCanvas / axis layout work — that pairing could hit React’s max update depth.
+     */
+    useEffect(() => {
         setIntervals((prev) => {
             if (prev === intervalsArray) return prev;
             if (intervalsArray.length === 0) return intervalsArray;
@@ -499,12 +519,11 @@ export const TickUpStage = forwardRef<TickUpStageHandle, TickUpStageProps>(({
         });
     }, [intervalsArray]);
 
-    function updateVisibleRange(rangeOrUpdate: TimeRange | ((prev: TimeRange) => TimeRange)) {
+    const updateVisibleRange = useCallback((rangeOrUpdate: TimeRange | ((prev: TimeRange) => TimeRange)) => {
         if (!intervals || intervals.length === 0) return;
         const intervalSeconds = getIntervalSeconds(intervals, 60);
         const lastT = intervals[intervals.length - 1]?.t ?? 0;
         const latestEnd = lastT ? (lastT + intervalSeconds) : 0;
-        const followPadding = Math.max(intervalSeconds, 1) * 2;
 
         setVisibleRange((prev) => {
             const currentRange = {start: prev.start, end: prev.end};
@@ -523,7 +542,7 @@ export const TickUpStage = forwardRef<TickUpStageHandle, TickUpStageProps>(({
             const [startIndex, endIndex] = findVisibleIndexRange(intervals, nextRange, intervalSeconds);
             return { ...nextRange, startIndex, endIndex };
         });
-    }
+    }, [intervals]);
 
     const [internalRange, setInternalRange] = useState<RangeKey | undefined>(initialRange);
     const currentRange = range !== undefined ? range : internalRange;
@@ -544,7 +563,7 @@ export const TickUpStage = forwardRef<TickUpStageHandle, TickUpStageProps>(({
 
         updateVisibleRange({ start: startT, end: lastT + rightOffset });
         followLatestRef.current = true;
-    }, [intervals, handleFitVisibleRange]);
+    }, [intervals, handleFitVisibleRange, updateVisibleRange]);
 
     useEffect(() => {
         if (range !== undefined) {
@@ -614,13 +633,16 @@ export const TickUpStage = forwardRef<TickUpStageHandle, TickUpStageProps>(({
         const paddedEnd = Math.min(n - 1, e + 1);
         const newPr = findPriceRange(intervals, paddedStart, paddedEnd);
 
-        if (
-            newPr.min !== visiblePriceRange.min ||
-            newPr.max !== visiblePriceRange.max ||
-            newPr.range !== visiblePriceRange.range
-        ) {
-            setVisiblePriceRange(newPr);
-        }
+        setVisiblePriceRange((pr) => {
+            if (
+                newPr.min === pr.min &&
+                newPr.max === pr.max &&
+                newPr.range === pr.range
+            ) {
+                return pr;
+            }
+            return newPr;
+        });
     }, [visibleRange, intervals]);
 
     useImperativeHandle(ref, () => ({
@@ -1011,6 +1033,10 @@ export const TickUpStage = forwardRef<TickUpStageHandle, TickUpStageProps>(({
                         locale={chartOptions.base.style.axes.locale}
                         primeGlass={primeGlass}
                         primeGlassLight={primeGlassLight}
+                        isPrimeProLicensed={proFeaturesEnabled}
+                        magnetEnabled={magnetEnabled}
+                        onToggleMagnet={() => setMagnetEnabled((v) => !v)}
+                        onProFeatureRequest={onProFeatureRequest}
                     />
                 </LeftBar>
             )}
@@ -1069,6 +1095,8 @@ export const TickUpStage = forwardRef<TickUpStageHandle, TickUpStageProps>(({
                                 showBrandWatermark={showBrandWatermark}
                                 brandTheme={chartOptions.base.theme}
                                 showEvaluationWatermark={showEvaluationWatermark}
+                                magnetEnabled={magnetEnabled && proFeaturesEnabled}
+                                primePerformanceUnlocked={primePerformanceUnlocked}
                             />
                         )}
                     </CanvasContainer>

@@ -70,6 +70,8 @@ function usePrefersColorSchemeDark(): boolean {
 type ChartKind = 'candle' | 'area' | 'line' | 'heikin';
 type DemoRangeKey = '20m' | '6h' | '7d' | '6mo' | '2y';
 const MAX_DEMO_HISTORY_BARS = 200_000;
+const MAX_CORE_CANDLES = 2_000;
+const CORE_RENDER_THROTTLE_MS = 1_000;
 const DEMO_RANGES: readonly DemoRangeKey[] = ['20m', '6h', '7d', '6mo', '2y'] as const;
 
 const TF_SECONDS: Record<string, number> = {
@@ -265,6 +267,10 @@ export default function TickUpDemo({ onOpenCompare, onIntervalFeedRequest, onRan
     const [symbol, setSymbol] = useState<DemoSymbol>('TICKUP');
     const [symbolDraft, setSymbolDraft] = useState<string>('TICKUP');
     const [emaOn, setEmaOn] = useState(true);
+    const [smaOn, setSmaOn] = useState(true);
+    const [wmaOn, setWmaOn] = useState(false);
+    const [bbandsOn, setBbandsOn] = useState(false);
+    const [vwapOn, setVwapOn] = useState(false);
     const [toast, setToast] = useState<string | null>(null);
     const [activeTool, setActiveTool] = useState<'cursor' | 'line' | 'ray' | 'fib' | 'pencil'>('cursor');
     const [liveTrading, setLiveTrading] = useState(true);
@@ -282,6 +288,11 @@ export default function TickUpDemo({ onOpenCompare, onIntervalFeedRequest, onRan
     const licenseSuccessCloseTimerRef = useRef<number | null>(null);
     const prevLicenseValidRef = useRef(false);
     const intervalMenuRef = useRef<HTMLDivElement | null>(null);
+    const primeUnlocked = primeMode && licenseValid;
+    const [coreRenderIntervals, setCoreRenderIntervals] = useState<Interval[]>([]);
+    const coreRenderLatestRef = useRef<Interval[]>([]);
+    const coreRenderTimerRef = useRef<number | null>(null);
+    const coreLastCommitAtRef = useRef(0);
 
     const showToastNow = useCallback((message: string, timeoutMs = 4200) => {
         setToast(message);
@@ -303,6 +314,9 @@ export default function TickUpDemo({ onOpenCompare, onIntervalFeedRequest, onRan
         }
         if (licenseSuccessCloseTimerRef.current != null) {
             window.clearTimeout(licenseSuccessCloseTimerRef.current);
+        }
+        if (coreRenderTimerRef.current != null) {
+            window.clearTimeout(coreRenderTimerRef.current);
         }
     }, []);
 
@@ -340,6 +354,12 @@ export default function TickUpDemo({ onOpenCompare, onIntervalFeedRequest, onRan
         }
         prevLicenseValidRef.current = licenseValid;
     }, [licenseValid, showToastNow]);
+
+    useEffect(() => {
+        if (!licenseValid) return;
+        setToast(null);
+        setLicenseActivationError(null);
+    }, [licenseValid]);
 
     useEffect(() => {
         const onPointerDown = (event: MouseEvent) => {
@@ -568,8 +588,10 @@ export default function TickUpDemo({ onOpenCompare, onIntervalFeedRequest, onRan
         }
     }, [range, intervalSec]);
 
-    const rawBarCount = primeMode ? 100_000 : Math.max(1500, barsForRange * 4);
-    const barCount = Math.min(MAX_DEMO_HISTORY_BARS, rawBarCount);
+    const rawBarCount = primeUnlocked ? 100_000 : Math.max(1500, barsForRange * 4);
+    const barCount = primeUnlocked
+        ? Math.min(MAX_DEMO_HISTORY_BARS, rawBarCount)
+        : Math.min(MAX_CORE_CANDLES, rawBarCount);
     const layoutResetKey = `${symbol}-${timeframe}-${range}-${primeMode}-${barCount}-${chartKind}`;
     const hostKey = layoutResetKey;
     const lastLayoutKeyRef = useRef<string | null>(null);
@@ -584,9 +606,15 @@ export default function TickUpDemo({ onOpenCompare, onIntervalFeedRequest, onRan
         let cancelled = false;
         (async () => {
             try {
-                if (rawBarCount > MAX_DEMO_HISTORY_BARS) {
+                if (primeUnlocked && rawBarCount > MAX_DEMO_HISTORY_BARS) {
                     showToastNow(
                         `Range ${range} at ${timeframe} is capped to ${MAX_DEMO_HISTORY_BARS.toLocaleString()} bars for stable rendering.`,
+                        2800
+                    );
+                }
+                if (!primeUnlocked && rawBarCount > MAX_CORE_CANDLES) {
+                    showToastNow(
+                        `Core mode renders the latest ${MAX_CORE_CANDLES.toLocaleString()} candles. Upgrade to Prime for unlimited history.`,
                         2800
                     );
                 }
@@ -606,7 +634,7 @@ export default function TickUpDemo({ onOpenCompare, onIntervalFeedRequest, onRan
         return () => {
             cancelled = true;
         };
-    }, [symbol, timeframe, range, rawBarCount, barCount, showToastNow]);
+    }, [symbol, timeframe, range, rawBarCount, barCount, showToastNow, primeUnlocked]);
 
     useEffect(() => {
         if (!liveTrading) return;
@@ -620,9 +648,38 @@ export default function TickUpDemo({ onOpenCompare, onIntervalFeedRequest, onRan
         return () => sub.stop();
     }, [liveTrading, symbol, timeframe]);
 
+    useEffect(() => {
+        if (primeUnlocked) {
+            if (coreRenderTimerRef.current != null) {
+                window.clearTimeout(coreRenderTimerRef.current);
+                coreRenderTimerRef.current = null;
+            }
+            setCoreRenderIntervals(baseIntervals);
+            return;
+        }
+        const capped = baseIntervals.slice(-MAX_CORE_CANDLES);
+        coreRenderLatestRef.current = capped;
+        const now = Date.now();
+        const elapsed = now - coreLastCommitAtRef.current;
+        if (elapsed >= CORE_RENDER_THROTTLE_MS) {
+            coreLastCommitAtRef.current = now;
+            setCoreRenderIntervals(capped);
+            return;
+        }
+        if (coreRenderTimerRef.current != null) {
+            window.clearTimeout(coreRenderTimerRef.current);
+        }
+        coreRenderTimerRef.current = window.setTimeout(() => {
+            coreLastCommitAtRef.current = Date.now();
+            setCoreRenderIntervals(coreRenderLatestRef.current);
+            coreRenderTimerRef.current = null;
+        }, CORE_RENDER_THROTTLE_MS - elapsed);
+    }, [baseIntervals, primeUnlocked]);
+
+    const sourceIntervals = primeUnlocked ? baseIntervals : coreRenderIntervals;
     const displayIntervals = useMemo(
-        () => (chartKind === 'heikin' ? toHeikinAshi(baseIntervals) : baseIntervals),
-        [baseIntervals, chartKind]
+        () => (chartKind === 'heikin' ? toHeikinAshi(sourceIntervals) : sourceIntervals),
+        [sourceIntervals, chartKind]
     );
 
     const initialVisibleTimeRange = useMemo(() => {
@@ -633,14 +690,47 @@ export default function TickUpDemo({ onOpenCompare, onIntervalFeedRequest, onRan
         return { start: displayIntervals[0].t, end: last.t + intervalSec };
     }, [displayIntervals, intervalSec]);
 
+    const activeIndicatorCount = useMemo(
+        () => [emaOn, smaOn, wmaOn, bbandsOn, vwapOn].filter(Boolean).length,
+        [emaOn, smaOn, wmaOn, bbandsOn, vwapOn]
+    );
+
+    const tryEnableIndicator = useCallback(
+        (kind: 'ema' | 'sma' | 'wma' | 'bbands' | 'vwap') => {
+            const isProOnly = kind === 'vwap';
+            if (isProOnly && !licenseValid) {
+                setIsLicenseModalOpen(true);
+                return;
+            }
+            const isCoreMode = !primeUnlocked;
+            if (isCoreMode && activeIndicatorCount >= 3) {
+                showToastNow('Core tier is limited to 3 indicators. Upgrade to Prime for unlimited analysis.');
+                return;
+            }
+            if (kind === 'ema') setEmaOn(true);
+            if (kind === 'sma') setSmaOn(true);
+            if (kind === 'wma') setWmaOn(true);
+            if (kind === 'bbands') setBbandsOn(true);
+            if (kind === 'vwap') setVwapOn(true);
+        },
+        [licenseValid, primeUnlocked, activeIndicatorCount, showToastNow]
+    );
+
     const overlayKinds = useMemo(() => {
-        type EmaOverlay = { kind: OverlayKind.ema; period: number };
-        const list: EmaOverlay[] = [];
-        if (emaOn) {
-            list.push({ kind: OverlayKind.ema, period: 21 });
-        }
+        const list: Array<
+            { kind: OverlayKind.ema; period: number }
+            | { kind: OverlayKind.sma; period: number }
+            | { kind: OverlayKind.wma; period: number }
+            | { kind: OverlayKind.bbands_mid; period: number }
+            | { kind: OverlayKind.vwap }
+        > = [];
+        if (emaOn) list.push({ kind: OverlayKind.ema, period: 21 });
+        if (smaOn) list.push({ kind: OverlayKind.sma, period: 50 });
+        if (wmaOn) list.push({ kind: OverlayKind.wma, period: 20 });
+        if (bbandsOn) list.push({ kind: OverlayKind.bbands_mid, period: 20 });
+        if (vwapOn) list.push({ kind: OverlayKind.vwap });
         return list;
-    }, [emaOn]);
+    }, [emaOn, smaOn, wmaOn, bbandsOn, vwapOn]);
 
     /**
      * Keep props in lockstep with {@link useLayoutEffect} `setEngine` so grid/candles/theme never disagree
@@ -1168,6 +1258,7 @@ export default function TickUpDemo({ onOpenCompare, onIntervalFeedRequest, onRan
                                     licenseKey={licenseKey}
                                     licenseUserIdentifier={userEmail}
                                     licenseValidationOverride={licenseValid}
+                                    onProFeatureRequest={() => setIsLicenseModalOpen(true)}
                                 />
                                 {!licenseValid ? (
                                     <div className="pointer-events-none absolute bottom-4 left-1/2 z-30 -translate-x-1/2 rounded-lg border border-red-500/40 bg-slate-950/70 px-3 py-1.5 text-xs font-semibold text-red-300 backdrop-blur-md">
@@ -1415,38 +1506,52 @@ export default function TickUpDemo({ onOpenCompare, onIntervalFeedRequest, onRan
                             >
                                 Indicators
                             </h3>
+                            <div className={`mb-2 text-[10px] ${isPageDark ? 'text-slate-500' : 'text-slate-500'}`}>
+                                Active: {activeIndicatorCount} {primeMode ? '(Prime: unlimited)' : '(Core limit: 3)'}
+                            </div>
                             <ul className="space-y-2">
                                 <IndicatorRow
                                     isDark={isPageDark}
                                     label="EMA (21)"
                                     active={emaOn}
-                                    onAdd={() => setEmaOn(true)}
+                                    onAdd={() => tryEnableIndicator('ema')}
                                     onRemove={() => setEmaOn(false)}
                                     supported
                                 />
                                 <IndicatorRow
                                     isDark={isPageDark}
-                                    label="RSI"
-                                    active={false}
-                                    onAdd={() => undefined}
-                                    onRemove={() => undefined}
-                                    supported={false}
+                                    label="SMA (50)"
+                                    active={smaOn}
+                                    onAdd={() => tryEnableIndicator('sma')}
+                                    onRemove={() => setSmaOn(false)}
+                                    supported
                                 />
                                 <IndicatorRow
                                     isDark={isPageDark}
-                                    label="MACD"
-                                    active={false}
-                                    onAdd={() => undefined}
-                                    onRemove={() => undefined}
-                                    supported={false}
+                                    label="WMA (20)"
+                                    active={wmaOn}
+                                    onAdd={() => tryEnableIndicator('wma')}
+                                    onRemove={() => setWmaOn(false)}
+                                    supported
                                 />
                                 <IndicatorRow
                                     isDark={isPageDark}
-                                    label="Volume Profile"
-                                    active={false}
-                                    onAdd={() => undefined}
-                                    onRemove={() => undefined}
-                                    supported={false}
+                                    label="Bollinger Mid (20)"
+                                    active={bbandsOn}
+                                    onAdd={() => tryEnableIndicator('bbands')}
+                                    onRemove={() => setBbandsOn(false)}
+                                    supported
+                                />
+                                <IndicatorRow
+                                    isDark={isPageDark}
+                                    label="VWAP"
+                                    active={vwapOn}
+                                    onAdd={() => tryEnableIndicator('vwap')}
+                                    onRemove={() => setVwapOn(false)}
+                                    supported
+                                    proBadge
+                                    proOnly={!licenseValid}
+                                    onProClick={() => setIsLicenseModalOpen(true)}
                                 />
                             </ul>
 
@@ -1492,7 +1597,7 @@ export default function TickUpDemo({ onOpenCompare, onIntervalFeedRequest, onRan
                                     ) : (
                                         'Live paused'
                                     )}
-                                    · Prime stress path uses {barCount.toLocaleString()} bars.
+                                    · {primeUnlocked ? 'Prime unlocked' : 'Core-limited'} render path uses {barCount.toLocaleString()} bars.
                                 </p>
                                 {onOpenCompare ? (
                                     <button
@@ -1570,7 +1675,15 @@ export default function TickUpDemo({ onOpenCompare, onIntervalFeedRequest, onRan
                         </label>
                         {licenseActivationError ? (
                             <div className="mb-3 text-xs font-medium text-red-400">
-                                {licenseActivationError}
+                                <div>{licenseActivationError}</div>
+                                <a
+                                    href="https://BARDAMRI.github.io/tickup-charts/"
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="mt-1 inline-block text-[#7dd3fc] underline decoration-[#7dd3fc]/60 underline-offset-2"
+                                >
+                                    Open license portal / support
+                                </a>
                             </div>
                         ) : null}
                         {statusMessage ? (
@@ -1608,10 +1721,10 @@ export default function TickUpDemo({ onOpenCompare, onIntervalFeedRequest, onRan
                                             licenseSuccessCloseTimerRef.current = null;
                                         }, 900);
                                     } else {
-                                        setLicenseActivationError('Invalid License Key or User ID. Please verify your credentials.');
+                                        setLicenseActivationError('Invalid license key or user identifier. Please verify your credentials, then retry or contact Prime Support.');
                                         setStatusMessage({
                                             tone: 'error',
-                                            text: 'Invalid License Key or User ID. Please verify your credentials.',
+                                            text: 'Invalid license key or user identifier. Verify your credentials, then retry or contact Prime Support.',
                                         });
                                         setLicenseInputsErrorFlash(true);
                                         if (licenseErrorFlashTimerRef.current != null) {
@@ -1624,10 +1737,10 @@ export default function TickUpDemo({ onOpenCompare, onIntervalFeedRequest, onRan
                                     }
                                 } catch {
                                     setLicenseValid(false);
-                                    setLicenseActivationError('Invalid License Key or User ID. Please verify your credentials.');
+                                    setLicenseActivationError('Invalid license key or user identifier. Please verify your credentials, then retry or contact Prime Support.');
                                     setStatusMessage({
                                         tone: 'error',
-                                        text: 'Invalid License Key or User ID. Please verify your credentials.',
+                                        text: 'Invalid license key or user identifier. Verify your credentials, then retry or contact Prime Support.',
                                     });
                                     setLicenseInputsErrorFlash(true);
                                     if (licenseErrorFlashTimerRef.current != null) {
@@ -1691,6 +1804,9 @@ function IndicatorRow({
     onAdd,
     onRemove,
     isDark = true,
+    proBadge = false,
+    proOnly = false,
+    onProClick,
 }: {
     label: string;
     active: boolean;
@@ -1698,6 +1814,9 @@ function IndicatorRow({
     onAdd: () => void;
     onRemove: () => void;
     isDark?: boolean;
+    proBadge?: boolean;
+    proOnly?: boolean;
+    onProClick?: () => void;
 }) {
     return (
         <li
@@ -1711,10 +1830,20 @@ function IndicatorRow({
                 </span>
             ) : (
                 <div className="flex gap-1">
+                    {proBadge ? (
+                        <button
+                            type="button"
+                            onClick={onProClick}
+                            className="rounded-md border border-[#5A48DE]/55 bg-[#5A48DE]/20 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-violet-200 hover:bg-[#5A48DE]/30"
+                            title="VWAP is a Prime indicator. Click to activate license."
+                        >
+                            PRO
+                        </button>
+                    ) : null}
                     <button
                         type="button"
                         onClick={onAdd}
-                        disabled={active}
+                        disabled={active || proOnly}
                         className={`rounded-md border px-2 py-1 text-[11px] disabled:opacity-40 ${isDark
                             ? 'border-white/10 text-slate-300 enabled:hover:bg-white/10'
                             : 'border-slate-300 text-slate-700 enabled:hover:bg-slate-100'

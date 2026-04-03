@@ -110,6 +110,14 @@ export const IconPencil: React.FC<{ active?: boolean }> = ({active}) => (
     </IconBase>
 );
 
+export const IconMagnet: React.FC<{ active?: boolean }> = ({active}) => (
+    <IconBase active={active} name="magnet">
+        <path d="M7 5.5v6.5a5 5 0 0 0 10 0V5.5" strokeWidth={SW.thick}/>
+        <line x1="7" y1="5.5" x2="10.5" y2="5.5" strokeWidth={SW.medium}/>
+        <line x1="13.5" y1="5.5" x2="17" y2="5.5" strokeWidth={SW.medium}/>
+    </IconBase>
+);
+
 /* =========================
  *  SETTINGS / UTILITY ICONS
  * ========================= */

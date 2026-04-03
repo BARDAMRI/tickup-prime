@@ -15,6 +15,7 @@ import type {Interval} from "../../../types/Interval";
 import type {ChartRenderContext} from "../../../types/chartOptions";
 import type {PriceRange} from "../../../types/Graph";
 import {DeepPartial, DeepRequired} from "../../../types/types";
+import {computePrimeVWAP} from "../../../engines/prime/premium/vwap";
 
 /** Factory helpers for calculation specs */
 export const OverlaySpecs = {
@@ -76,6 +77,8 @@ export function withOverlayStyle(style?: DeepPartial<OverlayOptions>) {
         lineColor: '#2962ff',
         lineWidth: 2,
         lineStyle: StrokeLineStyle.solid,
+        glowColor: 'transparent',
+        glowBlur: 0,
     }
     defaultStyle = {...defaultStyle, ...style};
     return (calc: OverlayCalcSpec = OverlaySpecs.close(), extras?: Pick<OverlayWithCalc, 'connectNulls' | 'useCenterX'>): OverlayWithCalc =>
@@ -202,21 +205,7 @@ function rollingStd(values: (number | null)[], period: number): (number | null)[
 }
 
 function computeVWAP(intervals: Interval[]): (number | null)[] {
-    const out: (number | null)[] = Array(intervals.length).fill(null);
-    let cumPV = 0, cumV = 0;
-    for (let i = 0; i < intervals.length; i++) {
-        const it: any = intervals[i];
-        const v = it?.v;
-        if (v == null || !Number.isFinite(Number(v))) {
-            out[i] = null;
-            continue;
-        }
-        const typical = (it.h + it.l + it.c) / 3;
-        cumPV += typical * v;
-        cumV += v;
-        out[i] = cumV === 0 ? null : (cumPV / cumV);
-    }
-    return out;
+    return computePrimeVWAP(intervals);
 }
 
 export function computeSeriesBySpec(intervals: Interval[], spec: OverlayCalcSpec): (number | null)[] {
@@ -268,6 +257,8 @@ export function computeSeriesBySpec(intervals: Interval[], spec: OverlayCalcSpec
 function applyStrokeStyle(ctx: CanvasRenderingContext2D, opt: OverlayOptions) {
     ctx.strokeStyle = opt?.lineColor ?? '#2a7fff';
     ctx.lineWidth = Math.max(0.5, opt?.lineWidth ?? 1.5);
+    ctx.shadowColor = opt?.glowColor ?? 'transparent';
+    ctx.shadowBlur = Math.max(0, opt?.glowBlur ?? 0);
     switch (opt?.lineStyle) {
         case StrokeLineStyle.dashed:
             ctx.setLineDash([6, 4]);
@@ -468,6 +459,8 @@ export function overlay(
         lineColor: '#2962ff',
         lineWidth: 2,
         lineStyle: StrokeLineStyle.solid,
+        glowColor: 'transparent',
+        glowBlur: 0,
     };
     defaultStyle = {...defaultStyle, ...style};
     return makeOverlay(defaultStyle, calc, extras);

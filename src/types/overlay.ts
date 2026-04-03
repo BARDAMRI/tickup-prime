@@ -9,6 +9,9 @@ export interface OverlayOptions {
     lineColor: string;
     lineWidth: number;
     lineStyle: StrokeLineStyle;
+    /** Optional glow used by Prime Pro overlays. */
+    glowColor?: string;
+    glowBlur?: number;
 }
 
 export interface OverlayWithCalc extends OverlayOptions {

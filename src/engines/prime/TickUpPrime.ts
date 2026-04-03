@@ -4,6 +4,7 @@ import {
     type TickUpRenderEngine,
     type TickUpChartEngine,
 } from 'tickup';
+import {isWebGL2Supported} from './webgl2';
 
 type EnginePatch = ReturnType<TickUpChartEngine['getChartOptionsPatch']>;
 const PRIME_ENGINE_ID = 'prime' as unknown as TickUpRenderEngine;
@@ -123,6 +124,9 @@ export function getTickUpPrimeThemePatch(theme: ChartTheme): EnginePatch {
 
 /** Use with `ref.setEngine(...)` so Prime stays aligned when toggling shell theme. */
 export function createTickUpPrimeEngine(theme: ChartTheme = ChartTheme.dark): TickUpChartEngine {
+    if (typeof window !== 'undefined' && !isWebGL2Supported()) {
+        throw new Error('TickUp Prime requires WebGL 2.0 support in the active browser/runtime.');
+    }
     return {
         id: PRIME_ENGINE_ID,
         getChartOptionsPatch: () => getTickUpPrimeThemePatch(theme),

@@ -15,7 +15,7 @@ import {
     TickUpRenderEngine,
     TimeDetailLevel,
 } from '../types/chartOptions';
-import {StrokeLineStyle} from '../types/overlay';
+import {OverlayKind, StrokeLineStyle} from '../types/overlay';
 import {Mode, ModeProvider} from '../contexts/ModeContext';
 import {deepMerge} from "../utils/deepMerge";
 import {deepEqual} from "../utils/deepEqual";
@@ -38,6 +38,7 @@ import {TickUpProductId} from '../types/tickupProducts';
 import type {TickUpChartEngine} from '../engines/TickUpEngine';
 import {AlertModal} from './Common/AlertModal';
 import {validateLicense} from '../licensing/validateLicense';
+import {isWebGL2Supported} from '../engines/prime/webgl2';
 
 /** Stable reference when `chartOptions` prop is omitted so sync effect is not fooled by a fresh `{}` each render. */
 const EMPTY_CHART_OPTIONS: DeepPartial<ChartOptions> = {};
@@ -159,6 +160,8 @@ export type TickUpHostProps = {
      * When provided, this overrides internal async validation for watermark gating.
      */
     licenseValidationOverride?: boolean;
+    /** Optional callback for Pro-only UI triggers (e.g. toolbar upgrade affordances). */
+    onProFeatureRequest?: (featureId: 'magnet') => void;
     /**
      * Shell **light** / **dark** (toolbar, settings modal chrome, `GlobalStyle` page background).
      * When set, the host is **controlled**: update this prop when {@link onThemeVariantChange} fires
@@ -223,6 +226,7 @@ export const TickUpHost = forwardRef<TickUpHostHandle, TickUpHostProps>((props, 
         licenseKey,
         licenseUserIdentifier,
         licenseValidationOverride,
+        onProFeatureRequest,
         showAttribution = true,
         themeVariant: themeVariantProp,
         defaultThemeVariant,
@@ -240,7 +244,6 @@ export const TickUpHost = forwardRef<TickUpHostHandle, TickUpHostProps>((props, 
     const showSidebar = hasLockedChrome ? tierLayout.showSidebar : (showSidebarProp ?? tierLayout.showSidebar);
     const showTopBar = hasLockedChrome ? tierLayout.showTopBar : (showTopBarProp ?? tierLayout.showTopBar);
     const showSettingsBar = hasLockedChrome ? tierLayout.showSettingsBar : (showSettingsBarProp ?? tierLayout.showSettingsBar);
-    const attributionOn = productId === TickUpProductId.desk ? true : showAttribution;
 
     const [finalStyleOptions, setStyleOptions] = useState<DeepRequired<ChartOptions>>(() =>
         deepMerge(DEFAULT_GRAPH_OPTIONS, chartOptions)
@@ -654,7 +657,7 @@ export const TickUpHost = forwardRef<TickUpHostHandle, TickUpHostProps>((props, 
         finalStyleOptions.base.style.drawings,
     ]) as SettingsState;
 
-    const chartOptionsForStage = useMemo((): DeepRequired<ChartOptions> => {
+    const baseChartOptionsForStage = useMemo((): DeepRequired<ChartOptions> => {
         if (themeVariant === ChartTheme.light) return finalStyleOptions;
         return deepMerge(finalStyleOptions, {
             base: {
@@ -678,6 +681,7 @@ export const TickUpHost = forwardRef<TickUpHostHandle, TickUpHostProps>((props, 
     }, [finalStyleOptions, themeVariant]);
 
     const [isLicenseValid, setIsLicenseValid] = useState(false);
+    const webgl2Ready = useMemo(() => isWebGL2Supported(), []);
     useEffect(() => {
         if (typeof licenseValidationOverride === 'boolean') {
             setIsLicenseValid(licenseValidationOverride);
@@ -701,7 +705,49 @@ export const TickUpHost = forwardRef<TickUpHostHandle, TickUpHostProps>((props, 
     }, [licenseKey, licenseUserIdentifier, licenseValidationOverride]);
 
     const primeTierEval = productId === TickUpProductId.prime && !isLicenseValid;
-    const primeEngineEval = chartOptionsForStage.base.engine === TickUpRenderEngine.prime && !isLicenseValid;
+    const requiresWebGL2 = baseChartOptionsForStage.base.engine === TickUpRenderEngine.prime;
+    const primeWebGLBlocked = requiresWebGL2 && !webgl2Ready;
+    const primeEngineEval = baseChartOptionsForStage.base.engine === TickUpRenderEngine.prime && (!isLicenseValid || primeWebGLBlocked);
+    const proFeaturesEnabled = baseChartOptionsForStage.base.engine === TickUpRenderEngine.prime && isLicenseValid && !primeWebGLBlocked;
+    const chartOptionsForStage = useMemo((): DeepRequired<ChartOptions> => {
+        if (!proFeaturesEnabled) {
+            return baseChartOptionsForStage;
+        }
+        const nextKinds = new Set(baseChartOptionsForStage.base.overlayKinds ?? []);
+        nextKinds.add(OverlayKind.vwap);
+        return deepMerge(baseChartOptionsForStage, {
+            base: {
+                overlayKinds: Array.from(nextKinds),
+                style: {
+                    candles: {
+                        bullColor: '#39ff14',
+                        bearColor: '#ff375f',
+                        upColor: '#39ff14',
+                        downColor: '#ff375f',
+                    },
+                    overlay: {
+                        lineColor: '#7b61ff',
+                        lineWidth: 1.8,
+                        glowColor: 'rgba(95, 89, 255, 0.88)',
+                        glowBlur: 8,
+                    },
+                    drawings: {
+                        glowColor: 'rgba(62, 197, 255, 0.75)',
+                        glowBlur: 7,
+                        selected: {
+                            glowColor: 'rgba(122, 97, 255, 0.95)',
+                            glowBlur: 12,
+                        },
+                    },
+                },
+            },
+        } as DeepPartial<ChartOptions>);
+    }, [baseChartOptionsForStage, proFeaturesEnabled]);
+    const attributionOn =
+        productId === TickUpProductId.desk ||
+        baseChartOptionsForStage.base.engine === TickUpRenderEngine.standard
+            ? true
+            : showAttribution;
     const hasWarnedPrimeEvalRef = useRef(false);
 
     useEffect(() => {
@@ -746,6 +792,22 @@ export const TickUpHost = forwardRef<TickUpHostHandle, TickUpHostProps>((props, 
                         TickUp Prime tier — evaluation mode. Provide <code>licenseKey</code> when your license is active.
                     </div>
                 ) : null}
+                {primeWebGLBlocked ? (
+                    <div
+                        style={{
+                            flexShrink: 0,
+                            padding: '6px 10px',
+                            fontSize: 11,
+                            textAlign: 'center',
+                            fontFamily: 'system-ui, sans-serif',
+                            backgroundColor: themeVariant === ChartTheme.dark ? 'rgba(127, 29, 29, 0.35)' : '#fff1f2',
+                            color: themeVariant === ChartTheme.dark ? '#fecaca' : '#7f1d1d',
+                            borderBottom: `1px solid ${themeVariant === ChartTheme.dark ? 'rgba(248, 113, 113, 0.25)' : '#fecdd3'}`,
+                        }}
+                    >
+                        TickUp Prime requires WebGL 2.0 for commercial mode. Update your browser/GPU driver to unlock Prime rendering.
+                    </div>
+                ) : null}
                 <div
                     style={{
                         flex: '1 1 auto',
@@ -784,6 +846,9 @@ export const TickUpHost = forwardRef<TickUpHostHandle, TickUpHostProps>((props, 
                         themeVariant={themeVariant}
                         showBrandWatermark={attributionOn}
                         showEvaluationWatermark={primeEngineEval}
+                        proFeaturesEnabled={proFeaturesEnabled}
+                        primePerformanceUnlocked={proFeaturesEnabled}
+                        onProFeatureRequest={onProFeatureRequest}
                     />
 
                     <SettingsModal

@@ -1,25 +1,75 @@
-import {useMemo} from 'react';
+import {useEffect, useMemo, useRef, useState} from 'react';
 import {IndexRangePair, PriceRange, TimeRange} from "../types/Graph";
 import {Interval} from "../types/Interval";
 import {ChartRenderContext} from "../types/chartOptions";
+import {TickUpRenderEngine} from "../types/chartOptions";
 import {getBarIntervalSeconds} from "../components/Canvas/utils/helpers";
 
 type VisibleRangeInput = TimeRange & Partial<{startIndex: number; endIndex: number}>;
+export const MAX_CORE_CANDLES = 2000;
+export const CORE_RENDER_THROTTLE_MS = 1000;
 
 export function useChartData(
     intervalsArray: Interval[],
     visibleRange: VisibleRangeInput,
     currentPoint: { x: number; y: number } | null,
     canvasWidth: number,
-    canvasHeight: number
+    canvasHeight: number,
+    engine?: TickUpRenderEngine,
+    primePerformanceUnlocked?: boolean,
 ): { renderContext: ChartRenderContext | null; intervalSeconds: number } {
+    const isCoreMode = engine !== TickUpRenderEngine.prime || !primePerformanceUnlocked;
+    const cappedIntervals = useMemo(() => {
+        if (!isCoreMode) return intervalsArray;
+        if (intervalsArray.length <= MAX_CORE_CANDLES) return intervalsArray;
+        return intervalsArray.slice(-MAX_CORE_CANDLES);
+    }, [intervalsArray, isCoreMode]);
+
+    const [renderIntervals, setRenderIntervals] = useState<Interval[]>(cappedIntervals);
+    const latestIntervalsRef = useRef<Interval[]>(cappedIntervals);
+    const lastCoreCommitRef = useRef<number>(0);
+    const coreTimerRef = useRef<number | null>(null);
+
+    useEffect(() => {
+        latestIntervalsRef.current = cappedIntervals;
+        if (!isCoreMode) {
+            if (coreTimerRef.current != null) {
+                window.clearTimeout(coreTimerRef.current);
+                coreTimerRef.current = null;
+            }
+            setRenderIntervals(cappedIntervals);
+            return;
+        }
+        const now = Date.now();
+        const elapsed = now - lastCoreCommitRef.current;
+        if (elapsed >= CORE_RENDER_THROTTLE_MS) {
+            lastCoreCommitRef.current = now;
+            setRenderIntervals(cappedIntervals);
+            return;
+        }
+        if (coreTimerRef.current != null) {
+            window.clearTimeout(coreTimerRef.current);
+        }
+        coreTimerRef.current = window.setTimeout(() => {
+            lastCoreCommitRef.current = Date.now();
+            setRenderIntervals(latestIntervalsRef.current);
+            coreTimerRef.current = null;
+        }, CORE_RENDER_THROTTLE_MS - elapsed);
+    }, [cappedIntervals, isCoreMode]);
+
+    useEffect(() => () => {
+        if (coreTimerRef.current != null) {
+            window.clearTimeout(coreTimerRef.current);
+        }
+    }, []);
+
     const intervalSeconds = useMemo(
-        () => getBarIntervalSeconds(intervalsArray, 3600),
-        [intervalsArray]
+        () => getBarIntervalSeconds(renderIntervals, 3600),
+        [renderIntervals]
     );
 
     const visibleCandles = useMemo<IndexRangePair>(() => {
-        const n = intervalsArray.length;
+        const n = renderIntervals.length;
         if (!n || intervalSeconds <= 0 || visibleRange == null) {
             return {startIndex: 0, endIndex: 0};
         }
@@ -40,7 +90,7 @@ export function useChartData(
         ) {
             return {startIndex: si, endIndex: ei};
         }
-        const firstTime = intervalsArray[0]!.t;
+        const firstTime = renderIntervals[0]!.t;
         const startIndex = Math.floor((start - firstTime) / intervalSeconds);
         const endIndex = Math.ceil((end - firstTime) / intervalSeconds);
         return {
@@ -48,7 +98,7 @@ export function useChartData(
             endIndex: Math.min(n - 1, endIndex),
         };
     }, [
-        intervalsArray,
+        renderIntervals,
         intervalSeconds,
         visibleRange.start,
         visibleRange.end,
@@ -58,13 +108,13 @@ export function useChartData(
 
     const visiblePriceRange: PriceRange = (() => {
         const { startIndex, endIndex } = visibleCandles;
-        if (startIndex >= endIndex || !intervalsArray.length) {
+        if (startIndex >= endIndex || !renderIntervals.length) {
             return { min: 0, max: 100, range: 100 };
         }
         let min = Infinity;
         let max = -Infinity;
         for (let i = startIndex; i <= endIndex; i++) {
-            const c = intervalsArray[i];
+            const c = renderIntervals[i];
             if (!c) continue;
             if (c.l < min) min = c.l;
             if (c.h > max) max = c.h;
@@ -84,7 +134,7 @@ export function useChartData(
             return null;
         }
         return {
-            allIntervals: intervalsArray,
+            allIntervals: renderIntervals,
             visibleStartIndex: visibleCandles.startIndex,
             visibleEndIndex: visibleCandles.endIndex,
             visiblePriceRange,
@@ -94,13 +144,16 @@ export function useChartData(
             canvasHeight,
         };
     }, [
-        intervalsArray,
+        renderIntervals,
         visibleCandles.startIndex,
         visibleCandles.endIndex,
         visiblePriceRange.min,
         visiblePriceRange.max,
         visiblePriceRange.range,
-        visibleRange,
+        visibleRange.start,
+        visibleRange.end,
+        visibleRange.startIndex,
+        visibleRange.endIndex,
         intervalSeconds,
         canvasWidth,
         canvasHeight,

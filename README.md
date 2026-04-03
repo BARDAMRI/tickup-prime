@@ -1,90 +1,88 @@
-# 💎 TickUp Prime
-## **The Premium High-Fidelity Rendering Engine for TickUp Charts**
+# TickUp Prime: Institutional-Grade WebGL Charting
 
-**TickUp Prime** is the elite extension for the TickUp ecosystem. It replaces the standard **Core** renderer with a high-performance, visually stunning engine designed for professional trading terminals, institutional dashboards, and high-stakes fintech applications.
+TickUp Prime is the commercial edition of TickUp, built for desks that require premium rendering throughput, advanced tooling, and a seamless paid unlock flow.
 
-## 🌟 Exclusive Prime Features
+Live showcase: [https://BARDAMRI.github.io/tickup-charts/](https://BARDAMRI.github.io/tickup-charts/)
 
-- **Neon Glow Engine:** Advanced Canvas 2D shaders for high-impact visual rendering.
-- **Turbo Rendering Path:** Optimized drawing logic for ultra-high-density data points.
-- **Cyberpunk & Midnight Themes:** Exclusive, pre-configured professional UI presets.
-- **Pro Indicators Suite:** Access to premium overlays like Volume Profile, advanced Fibonacci sets, and specialized moving averages.
-- **Priority Performance:** Minimal CPU overhead even with complex glow effects enabled.
+## Why Prime
 
-## 🚀 VIEW LIVE PRIME DEMO
+- **WebGL 2.0 acceleration**: Prime enforces a WebGL2-capable runtime and unlocks high-density rendering paths designed for large datasets and low-latency interaction.
+- **Magnetic Snapping (Pro)**: Drawing tools can snap to nearest OHLC levels for cleaner, faster technical annotation.
+- **VWAP Pro (daily reset)**: Built-in volume-weighted average price calculation with UTC daily reset for intraday precision.
+- **Neon Luxury theme**: Exclusive high-contrast palette, glow-enhanced overlays, and premium chart chrome.
 
-Experience the Neon Glow and Turbo Mode in our official showcase:  
-[https://BARDAMRI.github.io/tickup-charts/](https://BARDAMRI.github.io/tickup-charts/)
+## Quick Start (License Unlock)
 
-## 📦 Installation
-
-TickUp Prime is designed as a layer on top of the **Core** library.
+Install Core + Prime:
 
 ```bash
-# Install Core and Prime together
 npm install tickup @tickup/prime
 ```
 
-## 🛠️ Integration
-
-Activating the Prime engine in your `TickUpHost` is seamless:
-
-```ts
-import { TickUpHost } from 'tickup/full';
-import { createTickUpPrimeEngine, getTickUpPrimeThemePatch } from '@tickup/prime';
-
-// 1. Create the engine instance
-const primeEngine = createTickUpPrimeEngine();
-
-// 2. Pass it to the Host component
-<TickUpHost
-  engine={primeEngine}
-  chartOptions={getTickUpPrimeThemePatch('midnight-neon')}
-  {...props}
-/>;
-```
-
-## 🔐 Prime Licensing Props
-
-To remove evaluation watermarks and unlock Prime-only acceleration paths, pass the licensing props into your host:
-
-- `licenseKey`: your issued key (`TKUP-PRO-...`)
-- `licenseUserIdentifier`: the user identifier used when generating the key (email/account id)
+Activate Prime with license props:
 
 ```tsx
 import { TickUpHost } from 'tickup/full';
 import { createTickUpPrimeEngine, validateLicense } from '@tickup/prime';
 
-const key = 'TKUP-PRO-XXXX';
-const userIdentifier = 'bar@tickup.io';
-
-const isValid = await validateLicense(key, userIdentifier);
+const licenseKey = 'TKUP-PRO-XXXX';
+const userIdentifier = 'desk@yourfirm.com';
+const isValid = await validateLicense(licenseKey, userIdentifier);
 
 <TickUpHost
   intervalsArray={data}
   chartOptions={createTickUpPrimeEngine().getChartOptionsPatch()}
-  licenseKey={key}
+  licenseKey={licenseKey}
   licenseUserIdentifier={userIdentifier}
   licenseValidationOverride={isValid}
 />;
 ```
 
-> `licenseUserIdentifier` is the runtime user identifier prop (sometimes called `userIdentifier` in app-level UIs).
+When `licenseValidationOverride` becomes `true`, evaluation watermarking and upgrade blockers are removed immediately without page reload.
 
-### Security Note
+## Feature Details
 
-License verification runs locally using HMAC-SHA256-compatible validation logic. During this check, no license secrets or user identifiers are sent to external servers.
+### WebGL 2.0 in Prime
 
-## 📖 Prime Documentation
+Prime is configured with a WebGL2 runtime requirement for commercial unlock. This ensures Prime sessions run on capable GPU-backed environments before premium paths are enabled.
 
-- **Custom Neon Themes Guide** — [https://BARDAMRI.github.io/tickup-charts/](https://BARDAMRI.github.io/tickup-charts/)
-- **Prime Roadmap & Upcoming Pro Features** — [`Roadmap.md`](./Roadmap.md)
-- **Main Documentation Hub** — [https://BARDAMRI.github.io/tickup-charts/](https://BARDAMRI.github.io/tickup-charts/)
+### Magnetic Snapping
 
-## 🗺️ Prime Roadmap
+Prime-only drawing assistant:
 
-- **Q3 2026:** WebGL-Accelerated Heatmaps.
-- **Q4 2026:** Collaborative Real-time Drawing Sync (Multiplayer).
-- **2027:** AI-Powered Pattern Recognition Overlays.
+- Finds the candle nearest to cursor time.
+- Snaps drawing price to nearest OHLC value.
+- Improves trendline/zone placement consistency under high volatility.
 
-**Support & Licensing:** For commercial inquiries and enterprise support, contact `bardamri1702@gmail.com`.
+### VWAP Pro
+
+VWAP formula:
+
+`sum(typical_price * volume) / sum(volume)` where `typical_price = (high + low + close) / 3`
+
+Prime implementation resets accumulators daily (UTC session boundary), so intraday anchors stay accurate.
+
+### Neon Luxury Visuals
+
+Prime unlock applies:
+
+- Neon green/red high-saturation candles.
+- Purple-blue glow profile for premium overlays.
+- Glow-enhanced drawing objects and selected states.
+
+## Privacy & Security
+
+TickUp Prime license verification is local-only (HMAC-SHA256 compatible path).
+
+- No user trading data is transmitted during validation.
+- No chart payload is sent to external verification services.
+- Validation result is consumed directly by host props in your app runtime.
+
+## Documentation
+
+- Prime docs hub: [https://BARDAMRI.github.io/tickup-charts/](https://BARDAMRI.github.io/tickup-charts/)
+- Prime roadmap: [`Roadmap.md`](./Roadmap.md)
+
+## Commercial Support
+
+For commercial licensing and enterprise onboarding: `bardamri1702@gmail.com`

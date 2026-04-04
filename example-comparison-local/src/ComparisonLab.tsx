@@ -50,7 +50,7 @@ function formatHmsMs(d: Date): string {
  * Prime HUD: keeps rAF + FPS state **here** so parent re-renders do not hit TickUpHost
  * (avoids maximum update depth with TickUpStage’s layout sync on `intervalsArray`).
  */
-function PrimeTelemetryStrip() {
+function PrimeTelemetryStrip({streamTotal}: {streamTotal: number}) {
   const [lastPaint, setLastPaint] = useState(() => formatHmsMs(new Date()));
   const [fps, setFps] = useState(0);
   const [pulse, setPulse] = useState(0);
@@ -75,27 +75,41 @@ function PrimeTelemetryStrip() {
     return () => cancelAnimationFrame(raf);
   }, []);
 
+  const st = streamTotal.toLocaleString();
   return (
-    <div className="panel-telemetry panel-telemetry--prime">
-      <span className="telemetry-label">Prime tier</span>
-      <span
-        className="heartbeat-dot heartbeat-dot--prime"
-        style={{
-          opacity: pulse % 2 === 0 ? 1 : 0.35,
-          boxShadow: pulse % 2 === 0 ? '0 0 10px #38bdf8' : 'none',
-        }}
-        title="High-rate pulse (~display refresh)"
-      />
-      <span className="fps-pill">~{fps} FPS</span>
-      <span className="telemetry-time">
-        Last render: <span className="telemetry-time-value">{lastPaint}</span>
-      </span>
+    <div className="panel-telemetry panel-telemetry--prime panel-telemetry--stacked">
+      <div className="panel-telemetry__row">
+        <span className="telemetry-label">Prime tier</span>
+        <span
+          className="heartbeat-dot heartbeat-dot--prime"
+          style={{
+            opacity: pulse % 2 === 0 ? 1 : 0.35,
+            boxShadow: pulse % 2 === 0 ? '0 0 10px #38bdf8' : 'none',
+          }}
+          title="High-rate pulse (~display refresh)"
+        />
+        <span className="fps-pill">~{fps} FPS</span>
+        <span className="telemetry-time">
+          Last render: <span className="telemetry-time-value">{lastPaint}</span>
+        </span>
+      </div>
+      <div className="telemetry-metrics telemetry-metrics--prime">
+        Prime: {st} / {st} <span className="telemetry-unlimited">(Unlimited)</span>
+      </div>
     </div>
   );
 }
 
 /** Core HUD: advances on `coreTick` (1 Hz) only — useEffect, not useLayoutEffect. */
-function CoreTelemetryStrip({coreTick}: {coreTick: number}) {
+function CoreTelemetryStrip({
+  coreTick,
+  streamTotal,
+  coreCap,
+}: {
+  coreTick: number;
+  streamTotal: number;
+  coreCap: number;
+}) {
   const [lit, setLit] = useState(true);
   const [lastRender, setLastRender] = useState(() => formatHmsMs(new Date()));
 
@@ -104,18 +118,29 @@ function CoreTelemetryStrip({coreTick}: {coreTick: number}) {
     setLit((v) => !v);
   }, [coreTick]);
 
+  const effective = Math.min(streamTotal, coreCap);
+  const st = streamTotal.toLocaleString();
+  const eff = effective.toLocaleString();
+  const capped = streamTotal > coreCap;
+
   return (
-    <div className="panel-telemetry">
-      <span className="telemetry-label">Core tier</span>
-      <span
-        className="heartbeat-dot heartbeat-dot--core"
-        style={{opacity: lit ? 1 : 0.25}}
-        title="1 Hz heartbeat (toggles once per second)"
-      />
-      <span className="telemetry-hint">1 Hz data</span>
-      <span className="telemetry-time">
-        Last render: <span className="telemetry-time-value telemetry-time-value--core">{lastRender}</span>
-      </span>
+    <div className="panel-telemetry panel-telemetry--stacked">
+      <div className="panel-telemetry__row">
+        <span className="telemetry-label">Core tier</span>
+        <span
+          className="heartbeat-dot heartbeat-dot--core"
+          style={{opacity: lit ? 1 : 0.25}}
+          title="1 Hz heartbeat (toggles once per second)"
+        />
+        <span className="telemetry-hint">1 Hz data</span>
+        <span className="telemetry-time">
+          Last render: <span className="telemetry-time-value telemetry-time-value--core">{lastRender}</span>
+        </span>
+      </div>
+      <div className="telemetry-metrics">
+        Core: {eff} / {st}{' '}
+        {capped ? <span className="telemetry-capped">(Capped)</span> : <span style={{color: '#64748b'}}>(no cap)</span>}
+      </div>
     </div>
   );
 }
@@ -197,9 +222,11 @@ function capTail<T>(arr: T[], max: number): T[] {
   return arr.slice(arr.length - max);
 }
 
-/** > 2k so the Core history warning is visible. */
-const INITIAL_BARS = 2_400;
-const MAX_PRIME_BARS = 40_000;
+/** 10k stream vs Core render cap (see CORE_RENDER_CAP) — “5,000 bar wall” is visible. */
+const INITIAL_BARS = 10_000;
+/** Align with `MAX_CORE_CANDLES` in Core + Prime `useChartData.ts`. */
+const CORE_RENDER_CAP = 5_000;
+const MAX_PRIME_BARS = 50_000;
 const CORE_THROTTLE_MS = 1_000;
 const PRIME_TICK_MS = 1000 / 60;
 
@@ -247,7 +274,7 @@ export function ComparisonLab() {
   }, [toast]);
 
   const incomingBarCount = primeBars.length;
-  const showCoreCapBadge = incomingBarCount > 2_000;
+  const showCoreCapBadge = incomingBarCount > CORE_RENDER_CAP;
 
   const coreOverlayKinds = useMemo(() => {
     const kinds: any[] = [];
@@ -329,16 +356,31 @@ export function ComparisonLab() {
   return (
     <div className="lab-shell">
       <div className="lab-header">
-        <div>
+        <div className="lab-header__left">
           <div className="lab-title">Local comparison + telemetry</div>
           <div className="lab-subtitle">
             Left: Core from <code>@local-core/full</code> (sibling <code>tickup-core-final/src</code>). Right: Prime
-            from <code>@local-prime/full</code>. Prime feed ~60 Hz; Core chart snapshots 1 Hz (see timestamps).
+            from <code>@local-prime/full</code>. Prime feed ~60 Hz; Core chart snapshots 1 Hz. Initial pump:{' '}
+            {INITIAL_BARS.toLocaleString()} bars · Core engine cap: {CORE_RENDER_CAP.toLocaleString()} (generous standard).
+          </div>
+          <div className="lab-diagnostics" role="status">
+            <span className="telemetry-capped">Diagnostics</span>
+            <span> — Core: </span>
+            <span>{Math.min(incomingBarCount, CORE_RENDER_CAP).toLocaleString()}</span>
+            <span> / {incomingBarCount.toLocaleString()}</span>
+            {incomingBarCount > CORE_RENDER_CAP ? (
+              <span className="telemetry-capped"> (Capped at {CORE_RENDER_CAP.toLocaleString()})</span>
+            ) : (
+              <span style={{color: '#64748b'}}> (no cap)</span>
+            )}
+            <span className="lab-diagnostics-sep">|</span>
+            <span>Prime: {incomingBarCount.toLocaleString()} / {incomingBarCount.toLocaleString()} </span>
+            <span className="telemetry-unlimited">(Unlimited)</span>
           </div>
         </div>
         <div className="badge-row">
-          <span className="badge">Core bars (feed): {coreBars.length.toLocaleString()}</span>
-          <span className="badge">Prime bars (feed): {primeBars.length.toLocaleString()}</span>
+          <span className="badge">Core feed: {coreBars.length.toLocaleString()}</span>
+          <span className="badge">Prime feed: {primeBars.length.toLocaleString()}</span>
         </div>
       </div>
 
@@ -359,11 +401,17 @@ export function ComparisonLab() {
 
       <div className="grid">
         <section className="panel">
-          <CoreTelemetryStrip coreTick={coreTick} />
+          <CoreTelemetryStrip
+            coreTick={coreTick}
+            streamTotal={incomingBarCount}
+            coreCap={CORE_RENDER_CAP}
+          />
           {showCoreCapBadge ? (
             <div className="cap-warn" role="status">
-              <span className="cap-warn-title">Data Capped at 2,000 bars</span>
-              <span className="cap-warn-detail">Incoming stream: {incomingBarCount.toLocaleString()} bars</span>
+              <span className="cap-warn-title">Data Capped at 5,000 bars</span>
+              <span className="cap-warn-detail">
+                Stream: {incomingBarCount.toLocaleString()} bars — engine renders latest {CORE_RENDER_CAP.toLocaleString()}
+              </span>
             </div>
           ) : null}
           <div className="chart-wrap">
@@ -381,7 +429,7 @@ export function ComparisonLab() {
         </section>
 
         <section className="panel panel--prime">
-          <PrimeTelemetryStrip />
+          <PrimeTelemetryStrip streamTotal={incomingBarCount} />
           <div className="chart-wrap">
             <PrimeTickUpHost
               intervalsArray={primeBars as any}

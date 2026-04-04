@@ -27,6 +27,7 @@
   ],
   "scripts": {
     "dev": "vite",
+    "prepublishOnly": "npm run build",
     "build": "tsc && npm run build:lib && npx tsc --emitDeclarationOnly",
     "build:example": "npm run build && npm install --no-audit --no-fund --prefix example && npm run build --prefix example",
     "build:lib": "TICKUP_LIB_ENTRY=index vite build && TICKUP_LIB_ENTRY=full vite build",

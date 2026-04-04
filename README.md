@@ -1,88 +1,118 @@
-# TickUp Prime: Institutional-Grade WebGL Charting
+# TickUp Prime: The High-Performance WebGL Engine for Professional Trading Platforms
 
-TickUp Prime is the commercial edition of TickUp, built for desks that require premium rendering throughput, advanced tooling, and a seamless paid unlock flow.
+TickUp Prime is the **commercial, proprietary tier** of TickUp Charts. It targets desks and fintech products that need **10×-class throughput** versus Core, **institutional overlays**, and a **polished pro visual system**—with **local-only license verification** and **no telemetry** of your market data.
 
-Live showcase: [https://BARDAMRI.github.io/tickup-charts/](https://BARDAMRI.github.io/tickup-charts/)
+Showcase: [https://BARDAMRI.github.io/tickup-charts/](https://BARDAMRI.github.io/tickup-charts/)
 
-## Why Prime
+---
 
-- **WebGL 2.0 acceleration**: Prime enforces a WebGL2-capable runtime and unlocks high-density rendering paths designed for large datasets and low-latency interaction.
-- **Magnetic Snapping (Pro)**: Drawing tools can snap to nearest OHLC levels for cleaner, faster technical annotation.
-- **VWAP Pro (daily reset)**: Built-in volume-weighted average price calculation with UTC daily reset for intraday precision.
-- **Neon Luxury theme**: Exclusive high-contrast palette, glow-enhanced overlays, and premium chart chrome.
+## Why Prime Wins
 
-## Quick Start (License Unlock)
+| Capability | Core | Prime (licensed + WebGL2) |
+|------------|------|---------------------------|
+| History in render path | Last **5,000** candles | **Unlimited** (100k+ bars; WebGL batching) |
+| Data commit rate | **~1 Hz** throttle | **Native refresh** (60fps with your feed) |
+| VWAP (UTC daily reset) | — | **Institutional VWAP** in overlay pipeline |
+| Drawing magnet | — | **OHLC snap** to the bar under the crosshair |
+| Visuals | Standard | **Neon luxury** (high-saturation candles + glow overlays/drawings) |
+| Evaluation watermark | N/A | **Removed** when the license validates |
 
-Install Core + Prime:
+---
+
+## WebGL 2.0 Acceleration
+
+Prime’s commercial path **requires WebGL 2.0**. The renderer targets GPU-backed batches so large series stay interactive. If WebGL2 is unavailable, Prime falls back to a **blocked / evaluation** posture (watermark + Core-style limits) so behavior stays predictable.
+
+---
+
+## Magnetic Snapping (Pro)
+
+Drawing tools, when magnet is enabled for licensed Prime, snap prices to the **nearest OHLC** of the candle **anchored to crosshair time** (last bar with `t ≤` crosshair time on a sorted series). That keeps trendlines and zones aligned with the same price action you see on the candles.
+
+---
+
+## Institutional Indicators: VWAP Pro
+
+Prime ships **VWAP** with **UTC daily session reset**: typical price \((H+L+C)/3\) weighted by volume, cumulative within each UTC day. It is injected into the overlay stack when your license unlocks Prime styling (see `TickUpHost` merge logic).
+
+---
+
+## Neon Luxury Polish
+
+With a valid Prime unlock, the host merges a **neon palette** (e.g. high-saturation bull/bear) and **glow** on overlays and drawing chrome—distinct from Core’s flatter look.
+
+---
+
+## Local activation (`licenseKey` + `licenseUserIdentifier`)
+
+Install Core (peer) and Prime:
 
 ```bash
 npm install tickup @tickup/prime
 ```
 
-Activate Prime with license props:
+**Option A — async HMAC check (recommended):**
 
 ```tsx
 import { TickUpHost } from 'tickup/full';
 import { createTickUpPrimeEngine, validateLicense } from '@tickup/prime';
 
-const licenseKey = 'TKUP-PRO-XXXX';
-const userIdentifier = 'desk@yourfirm.com';
-const isValid = await validateLicense(licenseKey, userIdentifier);
+const licenseKey = 'TKUP-PRO-<YOUR_SIGNATURE>';
+const licenseUserIdentifier = 'trader@yourfirm.com';
+
+const ok = await validateLicense(licenseKey, licenseUserIdentifier);
 
 <TickUpHost
   intervalsArray={data}
   chartOptions={createTickUpPrimeEngine().getChartOptionsPatch()}
   licenseKey={licenseKey}
-  licenseUserIdentifier={userIdentifier}
-  licenseValidationOverride={isValid}
+  licenseUserIdentifier={licenseUserIdentifier}
+  licenseValidationOverride={ok}
 />;
 ```
 
-When `licenseValidationOverride` becomes `true`, evaluation watermarking and upgrade blockers are removed immediately without page reload.
+**Option B — trust server-side validation and pass the result:**
 
-## Feature Details
+```tsx
+<TickUpHost
+  chartOptions={createTickUpPrimeEngine().getChartOptionsPatch()}
+  licenseKey={licenseKey}
+  licenseUserIdentifier={licenseUserIdentifier}
+  licenseValidationOverride={true}
+/>
+```
 
-### WebGL 2.0 in Prime
+When `licenseValidationOverride` is `true`, evaluation UI and watermarks clear **immediately** (no full reload required).
 
-Prime is configured with a WebGL2 runtime requirement for commercial unlock. This ensures Prime sessions run on capable GPU-backed environments before premium paths are enabled.
+---
 
-### Magnetic Snapping
+## Privacy & security
 
-Prime-only drawing assistant:
+- License checks use **local HMAC-SHA256** verification compatible with issued `TKUP-…` keys. **No chart data** and **no OHLC series** are sent to TickUp or third parties for validation.
+- Your app decides when to call `validateLicense` and what to pass into `licenseValidationOverride`.
 
-- Finds the candle nearest to cursor time.
-- Snaps drawing price to nearest OHLC value.
-- Improves trendline/zone placement consistency under high volatility.
+---
 
-### VWAP Pro
+## npm package contents (proprietary build)
 
-VWAP formula:
+The published package **`files`** field ships **`dist/`** (bundled **obfuscated** ESM/CJS via `vite-plugin-javascript-obfuscator`), **TypeScript declarations**, plus `LICENSE` and this `README`. **Source under `src/` is not published**—clone access is separate from the customer tarball.
 
-`sum(typical_price * volume) / sum(volume)` where `typical_price = (high + low + close) / 3`
+```bash
+npm run build
+```
 
-Prime implementation resets accumulators daily (UTC session boundary), so intraday anchors stay accurate.
+Runs `tsc`, dual Vite library builds (`TICKUP_LIB_ENTRY=index|full`), and declaration emit. Set `TICKUP_SKIP_OBFUSCATE=1` only for local debugging.
 
-### Neon Luxury Visuals
+---
 
-Prime unlock applies:
+## Local comparison lab (Core vs Prime)
 
-- Neon green/red high-saturation candles.
-- Purple-blue glow profile for premium overlays.
-- Glow-enhanced drawing objects and selected states.
+The **`example/`** app includes a **Comparison** view: left pane pulls **`tickup-core-final`** from your disk (5k cap / 1Hz behavior), right pane runs **this repo’s Prime** build with **telemetry** (Core 1 Hz heartbeat vs Prime FPS clock). Use it to demo the performance gap on your machine.
 
-## Privacy & Security
+---
 
-TickUp Prime license verification is local-only (HMAC-SHA256 compatible path).
+## Documentation & support
 
-- No user trading data is transmitted during validation.
-- No chart payload is sent to external verification services.
-- Validation result is consumed directly by host props in your app runtime.
-
-## Documentation
-
-- Prime docs hub: [https://BARDAMRI.github.io/tickup-charts/](https://BARDAMRI.github.io/tickup-charts/)
-- Prime roadmap: [`Roadmap.md`](./Roadmap.md)
-
-## Commercial Support
-
-For commercial licensing and enterprise onboarding: `bardamri1702@gmail.com`
+- Docs hub: [https://BARDAMRI.github.io/tickup-charts/](https://BARDAMRI.github.io/tickup-charts/)
+- Roadmap: [`Roadmap.md`](./Roadmap.md)
+- Commercial licensing: `bardamri1702@gmail.com`

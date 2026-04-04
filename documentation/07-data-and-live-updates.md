@@ -19,6 +19,8 @@ Times are **seconds**, not milliseconds.
 
 Supply the full series from parent state. When the array reference or backing data changes, the chart updates.
 
+**Standard tier / Core render path:** the chart pipeline keeps only the **latest 5,000 candles** for rendering and applies an **≈1 Hz** commit throttle to canvas updates. **Prime** (licensed with WebGL2 performance unlocked) removes that cap and throttle so very large histories and high-frequency feeds stay interactive. Constants live in Core as `MAX_CORE_CANDLES` / `CORE_RENDER_THROTTLE_MS` in `useChartData`.
+
 For high-frequency streaming, prefer **`applyLiveData`** on the ref to avoid reallocating huge arrays on every tick.
 
 ## `applyLiveData(updates, placement)`

@@ -708,6 +708,7 @@ export const TickUpHost = forwardRef<TickUpHostHandle, TickUpHostProps>((props, 
     const requiresWebGL2 = baseChartOptionsForStage.base.engine === TickUpRenderEngine.prime;
     const primeWebGLBlocked = requiresWebGL2 && !webgl2Ready;
     const primeEngineEval = baseChartOptionsForStage.base.engine === TickUpRenderEngine.prime && (!isLicenseValid || primeWebGLBlocked);
+    /** Licensed Prime + WebGL2: neon/VWAP/magnet, no eval watermark, unlimited history + no Core throttle in the chart data hook. */
     const proFeaturesEnabled = baseChartOptionsForStage.base.engine === TickUpRenderEngine.prime && isLicenseValid && !primeWebGLBlocked;
     const chartOptionsForStage = useMemo((): DeepRequired<ChartOptions> => {
         if (!proFeaturesEnabled) {

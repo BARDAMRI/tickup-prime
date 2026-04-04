@@ -6,9 +6,21 @@ import {TickUpRenderEngine} from "../types/chartOptions";
 import {getBarIntervalSeconds} from "../components/Canvas/utils/helpers";
 
 type VisibleRangeInput = TimeRange & Partial<{startIndex: number; endIndex: number}>;
-export const MAX_CORE_CANDLES = 2000;
+/** Core tier: hard cap on candles kept in the render pipeline. */
+export const MAX_CORE_CANDLES = 5000;
+/** Core tier: max rate at which full chart data is committed to canvas context (≈1 Hz). */
 export const CORE_RENDER_THROTTLE_MS = 1000;
 
+/**
+ * Feeds {@link ChartRenderContext} for {@link ChartCanvas}.
+ *
+ * **Prime commercial unlock** (`primePerformanceUnlocked === true`, i.e. licensed Prime + WebGL2):
+ * - No candle truncation — full `intervalsArray` is rendered (100k+ bars supported by the WebGL path).
+ * - No Core throttle — every prop update commits immediately (60fps with host-driven data).
+ *
+ * **Core / evaluation Prime** (`TickUpRenderEngine.standard` or locked Prime): last {@link MAX_CORE_CANDLES}
+ * bars and {@link CORE_RENDER_THROTTLE_MS} batching apply.
+ */
 export function useChartData(
     intervalsArray: Interval[],
     visibleRange: VisibleRangeInput,

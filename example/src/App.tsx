@@ -16,6 +16,7 @@ import {
 } from 'tickup/full';
 import {Zap, Play, Pause, RefreshCw, Sun, Moon} from 'lucide-react';
 import TickUpDemo from './TickUpDemo';
+import ComparisonLab from './ComparisonLab';
 import './index.css';
 
 // ----------------------------------------------------------------------------
@@ -286,7 +287,7 @@ export default function App() {
         }
         return ChartTheme.dark;
     });
-    const [page, setPage] = useState<'tiers' | 'ticks'>('tiers');
+    const [page, setPage] = useState<'tiers' | 'ticks' | 'comparison'>('tiers');
 
     useEffect(() => {
         const mqLight = window.matchMedia('(prefers-color-scheme: light)');
@@ -496,6 +497,21 @@ export default function App() {
                     >
                         {page === 'ticks' ? 'Back' : 'Tick demo'}
                     </button>
+                    <button
+                        type="button"
+                        onClick={() => setPage((p) => (p === 'comparison' ? 'tiers' : 'comparison'))}
+                        className={`rounded-full border px-4 py-2 text-xs font-semibold uppercase tracking-wider transition-colors ${
+                            page === 'comparison'
+                                ? 'border-[#3EC5FF]/60 bg-[#3EC5FF]/10 text-[#3EC5FF]'
+                                : theme === ChartTheme.dark
+                                    ? 'border-white/10 bg-black/30 text-slate-300 hover:border-white/20 hover:text-white'
+                                    : 'border-slate-200 bg-white/70 text-slate-700 hover:border-slate-300 hover:text-slate-900'
+                        }`}
+                        aria-pressed={page === 'comparison'}
+                        title="Core vs Prime comparison (local Core source)"
+                    >
+                        {page === 'comparison' ? 'Back' : 'Compare'}
+                    </button>
                     <div className={`flex items-center gap-3 rounded-full border p-1.5 pl-4 pr-1.5 shadow-xl ${
                     theme === ChartTheme.dark ? 'border-white/10 bg-black/40' : 'border-slate-200 bg-white/60'
                 }`}>
@@ -546,6 +562,8 @@ export default function App() {
 
             {page === 'ticks' ? (
                 <TickUpDemo />
+            ) : page === 'comparison' ? (
+                <ComparisonLab />
             ) : (
                 <main className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-12 p-6 lg:gap-16 lg:p-12 mb-20">
                 <div className="text-center pt-8 pb-4">
@@ -594,7 +612,7 @@ export default function App() {
                         </div>
                         <div className={`grid grid-cols-3 rounded-lg border px-3 py-2 ${theme === ChartTheme.dark ? 'border-white/10 text-slate-300' : 'border-slate-200 text-slate-700'}`}>
                             <span>History Window</span>
-                            <span>2k candles</span>
+                            <span>5k candles</span>
                             <span className="font-semibold text-[#3EC5FF]">Unlimited</span>
                         </div>
                         <div className={`grid grid-cols-3 rounded-lg border px-3 py-2 ${theme === ChartTheme.dark ? 'border-white/10 text-slate-300' : 'border-slate-200 text-slate-700'}`}>

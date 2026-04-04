@@ -70,7 +70,7 @@ function usePrefersColorSchemeDark(): boolean {
 type ChartKind = 'candle' | 'area' | 'line' | 'heikin';
 type DemoRangeKey = '20m' | '6h' | '7d' | '6mo' | '2y';
 const MAX_DEMO_HISTORY_BARS = 200_000;
-const MAX_CORE_CANDLES = 2_000;
+const MAX_CORE_CANDLES = 5_000;
 const CORE_RENDER_THROTTLE_MS = 1_000;
 const DEMO_RANGES: readonly DemoRangeKey[] = ['20m', '6h', '7d', '6mo', '2y'] as const;
 

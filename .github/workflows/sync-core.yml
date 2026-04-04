@@ -4,9 +4,15 @@ on:
   workflow_dispatch:
   repository_dispatch:
     types: [core_updated]
+  push:
+    branches: [main]
 
 permissions:
   contents: write
+
+concurrency:
+  group: sync-core-main
+  cancel-in-progress: false
 
 jobs:
   sync-core:
@@ -35,15 +41,33 @@ jobs:
       - name: Install dependencies in example
         run: npm install --prefix example
 
-      - name: Commit and push if changed
+      - name: Bump version
+        id: bump
         run: |
-          if git diff --quiet -- package.json package-lock.json example/package.json example/package-lock.json; then
-            echo "No dependency changes detected."
+          npm version patch --no-git-tag-version
+          VERSION="$(node -p "require('./package.json').version")"
+          echo "version=${VERSION}" >> "${GITHUB_OUTPUT}"
+          echo "New version: ${VERSION}"
+
+      - name: Commit and push if changed
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          VERSION: ${{ steps.bump.outputs.version }}
+        run: |
+          git add package.json package-lock.json example/package.json example/package-lock.json
+
+          if git diff --cached --quiet; then
+            echo "No changes to commit (unexpected after version bump)."
             exit 0
           fi
 
-          git add package.json package-lock.json example/package.json example/package-lock.json
-          git commit -m "chore: sync with latest tickup core [skip ci]"
+          if [ "${EVENT_NAME}" = "push" ]; then
+            MSG="chore: automatic version bump to v${VERSION} [skip ci]"
+          else
+            MSG="chore: sync with core and bump version to v${VERSION} [skip ci]"
+          fi
+
+          git commit -m "${MSG}"
           git push origin main
 
   deploy-showcase:

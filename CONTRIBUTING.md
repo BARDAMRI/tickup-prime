@@ -27,6 +27,10 @@ The example app under `example/` uses `tickup/full` for demos that include the f
 
 Step-by-step **internal** runbooks live under **[`docs/internal/`](./docs/internal/README.md)**. That folder is **not** included in the npm package (see root `package.json` `"files"` and `.npmignore`). If the repository is **public** on GitHub, those files are still visible on the web—use a private repo or duplicate sensitive process docs elsewhere if required.
 
+### Automated versioning (this repo)
+
+The **[`Sync TickUp Core`](./.github/workflows/sync-core.yml)** workflow runs on **every push to `main`**, on **`repository_dispatch`** (`core_updated`), and on **manual `workflow_dispatch`**. Before committing dependency updates, it runs **`npm version patch --no-git-tag-version`** so the root **`package.json`** patch version always advances. The bot commit message ends with **`[skip ci]`** so that push does not re-trigger the same workflow (no infinite loop). You normally do **not** need to hand-edit the package version for routine merges to `main`.
+
 ## License
 
 By contributing, you agree that your contributions will be licensed under the same terms as the project ([MIT](./LICENSE)).

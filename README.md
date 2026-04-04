@@ -21,7 +21,7 @@ Showcase: [https://BARDAMRI.github.io/tickup-charts/](https://BARDAMRI.github.io
 
 ## WebGL 2.0 Acceleration
 
-Prime’s commercial path **requires WebGL 2.0**. The renderer targets GPU-backed batches so large series stay interactive. If WebGL2 is unavailable, Prime falls back to a **blocked / evaluation** posture (watermark + Core-style limits) so behavior stays predictable.
+Prime’s commercial path **requires WebGL 2.0**. The renderer targets GPU-backed batches so large series stay interactive at **60 FPS-class** refresh when your feed allows it, including **100k+** candles on capable hardware. If WebGL2 is unavailable, Prime falls back to a **blocked / evaluation** posture (watermark + Core-style limits) so behavior stays predictable. Deeper technical and benchmarking notes: [enterprise guide](./documentation/17-prime-enterprise-performance-security.md).
 
 ---
 
@@ -113,6 +113,8 @@ The **`example/`** app includes a **Comparison** view: left pane pulls **`tickup
 
 ## Documentation & support
 
+- **Enterprise / integration depth:** [`documentation/17-prime-enterprise-performance-security.md`](./documentation/17-prime-enterprise-performance-security.md) — WebGL2 & 100k+ scale, unlimited Prime history, magnet & VWAP, local HMAC licensing, watermark troubleshooting, Comparison Lab benchmarking.
 - Docs hub: [https://BARDAMRI.github.io/tickup-charts/](https://BARDAMRI.github.io/tickup-charts/)
+- Full package index: [`documentation/README.md`](./documentation/README.md)
 - Roadmap: [`Roadmap.md`](./Roadmap.md)
 - Commercial licensing: `bardamri1702@gmail.com`

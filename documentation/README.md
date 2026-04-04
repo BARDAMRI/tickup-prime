@@ -26,6 +26,7 @@ The **reference example app** in [`../example/`](../example/) (Vite + React) exe
 | 14 | [Legal & policies](./14-legal-and-policies.md) | Terms of Service, Privacy, Acceptable Use templates (`legal/`) |
 | 15 | [Prime engine & Pro roadmap](./15-prime-engine-and-pro-roadmap.md) | Prime render profile, engine usage, roadmap |
 | 16 | [Custom neon themes](./16-custom-neon-themes.md) | How to build and switch premium neon visual variants |
+| 17 | [Prime enterprise — performance, features & licensing](./17-prime-enterprise-performance-security.md) | WebGL2 scale, unlimited history, magnet/VWAP/neon, local HMAC licensing, Comparison Lab benchmarking |
 
 Prime package roadmap: [`../Roadmap.md`](../Roadmap.md)
 

@@ -48,7 +48,21 @@ export function PrimeHostExample({ data }: { data: Interval[] }) {
 
 Use `getTickUpPrimeThemePatch(theme)` or `createTickUpPrimeEngine(theme)` as your baseline.
 
-## 2) Override only style keys you own
+## 2) Licensed host defaults (reference)
+
+When **`TickUpHost`** unlocks Pro features (valid license + WebGL2 + Prime engine), it **deep-merges** a neon baseline. Use these as **documentation defaults** or starting points for your own theme tokens:
+
+| Key path | Typical licensed Prime intent |
+|----------|-------------------------------|
+| `base.style.candles.bullColor` / `bearColor` | High-saturation bull/bear (also `upColor` / `downColor` where used). |
+| `base.style.candles` border | Keeps readable edges on neon bodies. |
+| `base.style.overlay.lineColor` | VWAP / overlay stroke (e.g. violet). |
+| `base.style.overlay.glowColor` / `glowBlur` | **Glow** on indicator lines (canvas shadow). |
+| `base.style.drawings.glowColor` / `glowBlur` | Shape stroke glow; **`drawings.selected`** often uses a stronger pair. |
+
+Override any of these after your Prime patch merge; avoid replacing entire `chartOptions` trees.
+
+## 3) Override only style keys you own
 
 Recommended override areas:
 
@@ -58,16 +72,18 @@ Recommended override areas:
 - `base.style.candles.bullColor` / `bearColor`
 - `base.style.line.color`
 - `base.style.area.fillColor` / `strokeColor`
+- `base.style.overlay.glowColor` / `glowBlur` (Prime overlays)
+- `base.style.drawings.glowColor` / `glowBlur` (Prime drawings)
 
 Avoid replacing full chart option trees unless needed; merge partial overrides instead.
 
-## 3) Keep contrast readable
+## 4) Keep contrast readable
 
 - Dark themes: keep axis/tooltip text high-contrast against plot background.
 - Light themes: reduce neon alpha to avoid washed labels.
 - Crosshair overlays should remain visible over candles and area fills.
 
-## 4) Runtime switching
+## 5) Runtime switching
 
 When users toggle app theme, switch Prime engine variants with:
 

@@ -1,5 +1,7 @@
 # Prime render engine & Pro roadmap
 
+For **enterprise integration** — WebGL2 throughput, unlimited history vs Core caps, magnetic snap / VWAP / neon, **local HMAC licensing**, watermark troubleshooting, and **Comparison Lab** benchmarking — see **[Prime enterprise guide](./17-prime-enterprise-performance-security.md)**.
+
 ## Prime vs standard
 
 - **`chartOptions.base.engine`** — `'standard'` (default) or **`'prime'`**. Prime enables neon-oriented styling, gradient crosshair / target ring (standard canvas path), and **glass** drawing and settings toolbars when the engine is prime.

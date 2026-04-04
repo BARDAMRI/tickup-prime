@@ -45,8 +45,8 @@ An array of **`OverlayKind`** string keys (or calc specs in the type definition;
 |------|------|
 | `OverlayPriceKey` (`close`, `open`, `high`, `low`) | Raw price series. |
 | `sma`, `ema`, `wma` | Moving averages; `period` + optional `price` key. |
-| `vwap` | Volume-weighted average price (uses interval volume when present). |
-| `bbands_mid`, `bbands_upper`, `bbands_lower` | Bollinger mid/upper/lower; `period`, optional `stddev`, optional `price`. |
+| `vwap` | Volume-weighted average price (uses interval volume when present). In this package the VWAP series uses **UTC daily session reset** and typical price \((H+L+C)/3\) — see [Prime enterprise guide](./17-prime-enterprise-performance-security.md#22-vwap-pro-institutional-series). |
+| `bbands_mid`, `bbands_upper`, `bbands_lower` | Bollinger mid/upper/lower; `period`, optional `stddev` (default **2**), optional `price`. Use these when you need **standard-deviation bands** alongside or independent of VWAP. |
 
 ## Exported API (from `tickup`)
 

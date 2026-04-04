@@ -75,7 +75,7 @@
     "tickup": "^1.0.38",
     "ts-jest": "^29.3.4",
     "typescript": "~5.7.2",
-    "vite": "^5.4.19",
+    "vite": "^8.0.3",
     "vite-plugin-javascript-obfuscator": "^3.1.0"
   },
   "dependencies": {

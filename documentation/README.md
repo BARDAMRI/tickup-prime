@@ -27,6 +27,7 @@ The **reference example app** in [`../example/`](../example/) (Vite + React) exe
 | 15 | [Prime engine & Pro roadmap](./15-prime-engine-and-pro-roadmap.md) | Prime render profile, engine usage, roadmap |
 | 16 | [Custom neon themes](./16-custom-neon-themes.md) | How to build and switch premium neon visual variants |
 | 17 | [Prime enterprise — performance, features & licensing](./17-prime-enterprise-performance-security.md) | WebGL2 scale, unlimited history, magnet/VWAP/neon, local HMAC licensing, Comparison Lab benchmarking |
+| 18 | [Prime integration recipes & edge cases](./18-prime-integration-recipes-and-edge-cases.md) | Runtime engine swap, offline license cache, WebGL no-fly zone, many overlays, neon presets |
 
 Prime package roadmap: [`../Roadmap.md`](../Roadmap.md)
 

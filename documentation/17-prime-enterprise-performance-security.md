@@ -249,6 +249,7 @@ For **first-party debugging**, build with **`TICKUP_SKIP_OBFUSCATE=1`** (and thu
 
 ## See also
 
+- [Prime integration recipes & edge cases](./18-prime-integration-recipes-and-edge-cases.md) — dynamic `setEngine`, offline licensing, WebGL absence, 50+ overlays, neon presets.
 - [Prime engine & Pro roadmap](./15-prime-engine-and-pro-roadmap.md) — engine vs tier, light/dark glass.
 - [Custom neon themes](./16-custom-neon-themes.md) — merging palettes safely.
 - [Overlays & indicators](./12-overlays-and-indicators.md) — Bollinger and other calcs.

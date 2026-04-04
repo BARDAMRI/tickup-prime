@@ -114,6 +114,7 @@ The **`example/`** app includes a **Comparison** view: left pane pulls **`tickup
 ## Documentation & support
 
 - **Enterprise / integration depth:** [`documentation/17-prime-enterprise-performance-security.md`](./documentation/17-prime-enterprise-performance-security.md) — WebGL2 & 100k+ scale, unlimited Prime history, magnet & VWAP, local HMAC licensing, watermark troubleshooting, Comparison Lab benchmarking.
+- **Integration recipes & edge cases:** [`documentation/18-prime-integration-recipes-and-edge-cases.md`](./documentation/18-prime-integration-recipes-and-edge-cases.md) — runtime Core ↔ Prime swap, offline cached license, WebGL blocked behavior, heavy overlays, neon presets.
 - Docs hub: [https://BARDAMRI.github.io/tickup-charts/](https://BARDAMRI.github.io/tickup-charts/)
 - Full package index: [`documentation/README.md`](./documentation/README.md)
 - Roadmap: [`Roadmap.md`](./Roadmap.md)

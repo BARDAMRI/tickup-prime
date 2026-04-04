@@ -1,6 +1,6 @@
 {
   "name": "@tickup/prime",
-  "version": "1.0.16",
+  "version": "1.0.17",
   "description": "TickUp Prime premium financial engine for TickUp Charts with advanced rendering, licensing, and pro-focused chart extensions.",
   "type": "module",
   "private": true,

@@ -1,6 +1,6 @@
 {
   "name": "@tickup/prime",
-  "version": "1.0.19",
+  "version": "1.0.20",
   "description": "TickUp Prime premium financial engine for TickUp Charts with advanced rendering, licensing, and pro-focused chart extensions.",
   "type": "module",
   "private": true,
@@ -72,7 +72,7 @@
     "sass": "^1.89.2",
     "sass-embedded": "^1.87.0",
     "styled-components": "^6.1.19",
-    "tickup": "^1.0.38",
+    "tickup": "^1.0.39",
     "ts-jest": "^29.3.4",
     "typescript": "~5.7.2",
     "vite": "^5.4.19",
